@@ -1,0 +1,164 @@
+# Run this app on Railway (simple guide)
+
+You do **not** need a VPS, Netlify, or three different websites.  
+Everything can live in **one Railway project** — one login, one bill.
+
+---
+
+## What is this app? (30 seconds)
+
+Think of **5 pieces**:
+
+| Piece | What it does |
+|-------|----------------|
+| **Website** | What you open in the browser (dashboard) |
+| **API** | Saves data, login, uploads CSV |
+| **Worker** | Runs LinkedIn automation in the background |
+| **Postgres** | Database |
+| **Redis** | Queue so the worker knows what to do |
+
+On your PC, **Start App.bat** starts all of that at once.  
+On Railway, you add the same 5 pieces **inside one project**.
+
+---
+
+## Step 1 — New Railway project
+
+1. Go to [railway.app](https://railway.app) and log in.
+2. **New Project** → **Deploy from GitHub repo** (push this code to GitHub first if you have not).
+3. Pick this repository.
+
+You now have one empty service. We will add more.
+
+---
+
+## Step 2 — Add database and Redis
+
+In the same project:
+
+1. Click **+ New** → **Database** → **PostgreSQL**  
+2. Click **+ New** → **Database** → **Redis**
+
+Railway creates `DATABASE_URL` and `REDIS_URL` automatically.
+
+---
+
+## Step 3 — Three app services (same repo, three times)
+
+You need **three services** from the **same GitHub repo**:
+
+### A) API service
+
+1. **+ New** → **GitHub Repo** → same repo (or duplicate the first service).
+2. Name it `api`.
+3. **Settings** → **Build**:
+   - Builder: **Dockerfile**
+   - Dockerfile path: `Dockerfile`
+4. **Settings** → **Deploy** → **Custom start command** (if Railway asks): leave default (`/entrypoint-api.sh` is already the image default).
+5. **Variables** (see list below). Important:
+   - `DATABASE_URL` → **Reference** → your Postgres service
+   - `REDIS_URL` → **Reference** → your Redis service
+6. **Settings** → **Networking** → **Generate domain** (e.g. `https://something.up.railway.app`).  
+   Copy this URL — that is your **API URL**.
+
+### B) Worker service
+
+1. **+ New** → same repo again.
+2. Name it `worker`.
+3. Dockerfile path: `Dockerfile` (same file as API).
+4. **Settings** → **Deploy** → **Start command**:
+   ```
+   /entrypoint-worker.sh
+   ```
+5. Same `DATABASE_URL` and `REDIS_URL` references as API.
+6. Worker needs **more RAM** (Playwright). In **Settings** → give it at least **2–4 GB** if jobs fail.
+
+### C) Website service
+
+1. **+ New** → same repo again.
+2. Name it `web`.
+3. Dockerfile path: `Dockerfile.web`
+4. **Variables** → add at build time:
+   - `NEXT_PUBLIC_API_URL` = your **API URL** from step A (must start with `https://`)
+5. **Generate domain** for the website.  
+   That URL is what you open in the browser.
+
+---
+
+## Step 4 — Variables (copy checklist)
+
+Set these on **API** and **Worker** (and shared where noted):
+
+| Variable | What to put |
+|----------|-------------|
+| `DATABASE_URL` | Reference → Postgres |
+| `REDIS_URL` | Reference → Redis |
+| `SESSION_ENCRYPTION_KEY` | Any long random string (32+ characters) |
+| `AGENCY_ADMIN_EMAIL` | Your email |
+| `AGENCY_ADMIN_PASSWORD` | A strong password you choose |
+| `OPENAI_API_KEY` | From OpenAI |
+| `WEB_URL` | **Website** public URL (step C) |
+| `NODE_ENV` | `production` |
+
+On **Website** only:
+
+| Variable | What to put |
+|----------|-------------|
+| `NEXT_PUBLIC_API_URL` | **API** public URL (step A) |
+
+Redeploy **web** after you set `NEXT_PUBLIC_API_URL` (it is baked in at build time).
+
+---
+
+## Step 5 — First login
+
+1. Open your **website** URL.
+2. Log in with `AGENCY_ADMIN_EMAIL` / `AGENCY_ADMIN_PASSWORD`.
+
+If login fails, run seed once on the API service (Railway → API → **Shell**):
+
+```bash
+pnpm --filter @linkedin-agent/db seed
+```
+
+---
+
+## Step 6 — LinkedIn
+
+The **“Connect LinkedIn”** button needs a screen. Railway servers have no screen.
+
+**On your own computer** (with the project installed):
+
+```powershell
+cd D:\Work\APPS\Likedin
+npx pnpm@9.15.0 --filter @linkedin-agent/linkedin login
+```
+
+Copy the session it gives you. In the live app: **LinkedIn** → **Advanced** → paste it.
+
+After that, the **worker** on Railway can run automation.
+
+---
+
+## VPS vs Railway (for you)
+
+| | VPS guide | Railway (this guide) |
+|--|-----------|----------------------|
+| You already have an account? | No | **Yes** |
+| Feels like | Rent a server, run Docker yourself | Click boxes in Railway |
+| Good if | You like servers | You want simple hosting |
+
+You can **ignore** [VPS-DEPLOY.md](./VPS-DEPLOY.md) if you use Railway.
+
+---
+
+## Still confused?
+
+**Minimum to remember:**
+
+1. One Railway **project**.
+2. Postgres + Redis + **api** + **worker** + **web**.
+3. Two public URLs: website for you, API for the website to talk to.
+4. Paste LinkedIn session once (Advanced), not the Connect button on Railway.
+
+If you want, we can add a `railway.toml` so Railway auto-creates services — say the word and we can do that next.

@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  agency_admin
+  client_owner
+  client_viewer
+}
+
+enum LinkedInAccountStatus {
+  disconnected
+  active
+  needs_human
+  rate_limited
+  paused
+}
+
+enum ProspectStage {
+  imported
+  profile_analyzed
+  connect_sent
+  connected
+  connect_ignored
+  intro_sent
+  conversing
+  call_offered
+  call_booked
+  opted_out
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum JobType {
+  analyze_profile
+  send_connect
+  poll_inbox
+  send_message
+  check_connection
+}
+
+enum JobStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum PlaybookVersionStatus {
+  draft
+  published
+}
+
+model AgencySettings {
+  id           String   @id @default("singleton")
+  basePrompt   String   @default("") @db.Text
+  llmProvider  String   @default("openai")
+  llmModel     String   @default("gpt-4o-mini")
+  temperature  Float    @default(0.7)
+  maxTokens    Int      @default(1024)
+  updatedAt    DateTime @updatedAt
+}
+
+model Tenant {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  isPaused        Boolean  @default(false)
+  canEditPlaybook Boolean  @default(false)
+  timezone        String   @default("America/New_York")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users            User[]
+  campaigns        Campaign[]
+  linkedInAccounts LinkedInAccount[]
+  prospects        Prospect[]
+  jobs             Job[]
+  metricDaily      MetricDaily[]
+  auditLogs        AuditLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         UserRole @default(client_owner)
+  tenantId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Campaign {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  niche     String   @default("wrestlers")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  playbookVersions PlaybookVersion[]
+  prospects        Prospect[]
+
+  @@index([tenantId])
+}
+
+model PlaybookVersion {
+  id         String                @id @default(cuid())
+  campaignId String
+  version    Int
+  status     PlaybookVersionStatus @default(draft)
+  label      String?
+  config     Json
+  publishedAt DateTime?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, version])
+  @@index([campaignId, status])
+}
+
+model PlaybookTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  niche     String   @unique
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LinkedInAccount {
+  id                String                @id @default(cuid())
+  tenantId          String
+  label             String                @default("Primary")
+  status            LinkedInAccountStatus @default(disconnected)
+  sessionEncrypted  String?               @db.Text
+  dailyConnections  Int                   @default(0)
+  dailyMessages     Int                   @default(0)
+  dailyProfileViews Int                   @default(0)
+  countersResetAt   DateTime              @default(now())
+  lastError         String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prospects Prospect[]
+  jobs      Job[]
+
+  @@index([tenantId])
+}
+
+model Prospect {
+  id                String        @id @default(cuid())
+  tenantId          String
+  campaignId        String
+  linkedInAccountId String?
+  linkedinUrl       String
+  firstName         String?
+  lastName          String?
+  headline          String?
+  company           String?
+  school            String?
+  rawImport         Json?
+  stage             ProspectStage @default(imported)
+  profileSummary    Json?
+  profileFetchedAt  DateTime?
+  playbookVersionId String?
+  nextActionAt      DateTime      @default(now())
+  lastInboundAt     DateTime?
+  outboundCount     Int           @default(0)
+  calendlyBookedAt  DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaign        Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  linkedInAccount LinkedInAccount? @relation(fields: [linkedInAccountId], references: [id])
+  messages        Message[]
+  jobs            Job[]
+
+  @@unique([tenantId, linkedinUrl])
+  @@index([tenantId, stage, nextActionAt])
+  @@index([campaignId])
+}
+
+model Message {
+  id              String           @id @default(cuid())
+  prospectId      String
+  direction       MessageDirection
+  text            String           @db.Text
+  linkedinMsgId   String?
+  idempotencyKey  String?          @unique
+  promptVersionId String?
+  aiReasoning     String?          @db.Text
+  sentAt          DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+
+  prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@index([prospectId, sentAt])
+}
+
+model Job {
+  id                String    @id @default(cuid())
+  tenantId          String
+  prospectId        String?
+  linkedInAccountId String?
+  type              JobType
+  status            JobStatus @default(pending)
+  payload           Json?
+  attempts          Int       @default(0)
+  maxAttempts       Int       @default(3)
+  error             String?   @db.Text
+  scheduledAt       DateTime  @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prospect        Prospect?        @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  linkedInAccount LinkedInAccount? @relation(fields: [linkedInAccountId], references: [id])
+
+  @@index([status, scheduledAt])
+  @@index([tenantId])
+}
+
+model MetricDaily {
+  id               String   @id @default(cuid())
+  tenantId         String
+  campaignId       String?
+  date             DateTime @db.Date
+  connectsSent     Int      @default(0)
+  connectsAccepted Int      @default(0)
+  introsSent       Int      @default(0)
+  repliesReceived  Int      @default(0)
+  callsOffered     Int      @default(0)
+  callsBooked      Int      @default(0)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, campaignId, date])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}

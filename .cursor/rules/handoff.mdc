@@ -1,0 +1,31 @@
+---
+description: Session continuity — read and update HANDOFF.md for substantial work
+globs:
+alwaysApply: true
+---
+
+# Handoff continuity
+
+This repo uses **HANDOFF.md** at the repository root as the single source of truth across agent refreshes.
+
+## At the start of substantial tasks
+
+1. Read **HANDOFF.md** first (status, blockers, plan todo table, next actions).
+2. Do **not** edit the plan file `linkedin_outreach_agent` under `.cursor/plans`; update HANDOFF.md instead.
+3. Prefer facts from the repo and a fresh `pnpm build` / `typecheck` over stale handoff notes.
+
+## Before ending a session or refreshing
+
+Update **HANDOFF.md** with:
+
+- What changed (files/areas, not a full diff)
+- Current build/runtime status (pass/fail, which package failed)
+- Blockers and numbered next actions for the following session
+- A short row in the **Session log** table (date, summary)
+
+Keep HANDOFF.md **factual and under ~200 lines**. Trim obsolete session detail rather than growing indefinitely.
+
+## Scope
+
+- Substantial = multi-file features, build fixes, orchestrator/API work, or continuing the outreach-agent plan todos.
+- Trivial one-line fixes do not require a full handoff rewrite; a one-line session log note is enough if context matters.

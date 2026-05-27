@@ -1,0 +1,31 @@
+{
+  "name": "linkedin-outreach-agent",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "stop": "node scripts/stop.mjs",
+    "setup": "pnpm install && docker compose up -d && pnpm db:push && pnpm db:seed && pnpm build",
+    "build": "pnpm -r run build",
+    "dev": "pnpm -r --parallel run dev",
+    "dev:all": "pnpm exec concurrently -k -n api,worker,web -c blue,green,magenta \"pnpm dev:api\" \"pnpm dev:worker\" \"pnpm dev:web\"",
+    "dev:api": "pnpm --filter @linkedin-agent/api dev",
+    "dev:worker": "pnpm --filter @linkedin-agent/worker dev",
+    "dev:web": "pnpm --filter @linkedin-agent/web dev",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "playwright:install": "pnpm --filter @linkedin-agent/linkedin playwright:install",
+    "db:generate": "pnpm --filter @linkedin-agent/db generate",
+    "db:migrate": "pnpm --filter @linkedin-agent/db migrate",
+    "db:push": "pnpm --filter @linkedin-agent/db push",
+    "db:seed": "pnpm --filter @linkedin-agent/db seed",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

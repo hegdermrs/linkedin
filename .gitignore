@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+.env
+.env.local
+*.log
+playwright-report
+test-results
+.sessions
+coverage
+.turbo
+.playwright-chromium-ready
