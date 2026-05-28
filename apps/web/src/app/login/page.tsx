@@ -17,7 +17,12 @@ export default function LoginPage() {
       const { user } = await api.login(email, password);
       router.push("/setup");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const msg = err instanceof Error ? err.message : "Login failed";
+      setError(
+        msg === "Invalid credentials"
+          ? "Invalid credentials — use AGENCY_ADMIN_EMAIL and AGENCY_ADMIN_PASSWORD from Railway (api service), then run seed in api Shell."
+          : msg
+      );
     }
   }
 

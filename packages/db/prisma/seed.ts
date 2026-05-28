@@ -34,7 +34,10 @@ async function main() {
       name: "Agency Admin",
       role: UserRole.agency_admin,
     },
-    update: {},
+    update: {
+      passwordHash: hashPassword(adminPassword),
+      role: UserRole.agency_admin,
+    },
   });
 
   await prisma.playbookTemplate.upsert({
