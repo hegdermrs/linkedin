@@ -8,7 +8,8 @@ COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 RUN mkdir -p apps/web/public
 
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+# Optional: set NEXT_PUBLIC_API_URL to api public URL. Prefer API_URL on web at runtime (same-origin proxy).
+ARG NEXT_PUBLIC_API_URL=
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN pnpm install --frozen-lockfile
@@ -19,6 +20,8 @@ FROM node:20-bookworm-slim AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
+# Set at runtime on Railway: http://api.railway.internal:${{api.PORT}}
+ENV API_URL=
 
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 

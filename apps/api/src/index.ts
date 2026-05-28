@@ -58,10 +58,12 @@ app.post("/auth/login", async (request, reply) => {
   const user = await authenticate(body.email ?? "", body.password ?? "");
   if (!user) return reply.status(401).send({ error: "Invalid credentials" });
   const token = createSession(user);
+  const isProd = process.env.NODE_ENV === "production";
   reply.setCookie("session", token, {
     path: "/",
     httpOnly: true,
-    sameSite: "lax",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     maxAge: 60 * 60 * 24 * 7,
   });
   return { user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId } };
