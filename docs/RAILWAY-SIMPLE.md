@@ -54,7 +54,11 @@ You need **three services** from the **same GitHub repo**:
 3. **Settings** → **Build**:
    - Builder: **Dockerfile**
    - Dockerfile path: `Dockerfile`
-4. **Settings** → **Deploy** → **Custom start command** (if Railway asks): leave default (`/entrypoint-api.sh` is already the image default).
+4. **Settings** → **Deploy** → **Start command** must be:
+   ```
+   /entrypoint-api.sh
+   ```
+   If this is blank, the service shows **Completed** (crashed/exited) instead of **Online**.
 5. **Variables** (see list below). Important:
    - `DATABASE_URL` → **Reference** → your Postgres service
    - `REDIS_URL` → **Reference** → your Redis service

@@ -37,3 +37,6 @@ RUN chmod +x /entrypoint-api.sh /entrypoint-worker.sh
 
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Default for api service (worker overrides with /entrypoint-worker.sh on Railway)
+CMD ["/entrypoint-api.sh"]
