@@ -8,7 +8,7 @@ import {
   ProfileSummarySchema,
 } from "@linkedin-agent/shared";
 import { DEFAULT_WRESTLER_PLAYBOOK } from "@linkedin-agent/agent";
-import { previewReply } from "@linkedin-agent/agent";
+import { previewReply, resolveLlmConfig } from "@linkedin-agent/agent";
 import {
   authenticate,
   createSession,
@@ -235,15 +235,8 @@ app.post("/admin/tenants/:tenantId/playbook/preview", async (request) => {
     body.config ?? DEFAULT_WRESTLER_PLAYBOOK
   );
   const agency = await getAgencySettings();
-  const apiKey = process.env.OPENAI_API_KEY ?? "";
   const reply = await previewReply(
-    {
-      provider: agency.llmProvider,
-      model: agency.llmModel,
-      apiKey,
-      temperature: agency.temperature,
-      maxTokens: agency.maxTokens,
-    },
+    resolveLlmConfig(agency),
     agency.basePrompt,
     config,
     ProfileSummarySchema.parse({

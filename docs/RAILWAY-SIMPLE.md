@@ -85,7 +85,19 @@ You need **three services** from the **same GitHub repo**:
 
 ---
 
-## Step 4 — Variables (copy checklist)
+## Step 4 — Variables (copy-paste files)
+
+Ready-made blocks (edit `CHANGE_ME` and URLs, then **Raw Editor** on each service):
+
+| Service | File |
+|---------|------|
+| api | [env/railway-api.raw.env](../env/railway-api.raw.env) |
+| worker | [env/railway-worker.raw.env](../env/railway-worker.raw.env) |
+| web | [env/railway-web.raw.env](../env/railway-web.raw.env) |
+
+`DATABASE_URL` / `REDIS_URL` use `${{Postgres.DATABASE_URL}}` style references — fix service names in Railway if yours differ (e.g. `PostgreSQL` instead of `Postgres`).
+
+## Step 4b — Variables (manual checklist)
 
 Set these on **API** and **Worker** (and shared where noted):
 
@@ -96,7 +108,9 @@ Set these on **API** and **Worker** (and shared where noted):
 | `SESSION_ENCRYPTION_KEY` | Any long random string (32+ characters) |
 | `AGENCY_ADMIN_EMAIL` | Your email |
 | `AGENCY_ADMIN_PASSWORD` | A strong password you choose |
-| `OPENAI_API_KEY` | From OpenAI |
+| `DEEPSEEK_API_KEY` | From [DeepSeek](https://platform.deepseek.com) |
+| `DEFAULT_LLM_PROVIDER` | `deepseek` |
+| `DEFAULT_LLM_MODEL` | `deepseek-chat` |
 | `WEB_URL` | **Website** public URL (step C) |
 | `NODE_ENV` | `production` |
 

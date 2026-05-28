@@ -18,7 +18,11 @@ export async function getPublishedPlaybook(
 export async function getAgencySettings() {
   return prisma.agencySettings.upsert({
     where: { id: "singleton" },
-    create: { id: "singleton" },
+    create: {
+      id: "singleton",
+      llmProvider: process.env.DEFAULT_LLM_PROVIDER ?? "deepseek",
+      llmModel: process.env.DEFAULT_LLM_MODEL ?? "deepseek-chat",
+    },
     update: {},
   });
 }

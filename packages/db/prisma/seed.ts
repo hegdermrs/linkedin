@@ -17,8 +17,8 @@ async function main() {
       id: "singleton",
       basePrompt:
         "You are a helpful LinkedIn outreach assistant. Be authentic, concise, and respectful. Never be pushy.",
-      llmProvider: "openai",
-      llmModel: "gpt-4o-mini",
+      llmProvider: "deepseek",
+      llmModel: "deepseek-chat",
     },
     update: {},
   });

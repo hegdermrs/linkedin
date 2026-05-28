@@ -40,7 +40,7 @@ Press **Ctrl+C** in that terminal to stop the app. Run `npx pnpm@9.15.0 stop` to
 npx pnpm@9.15.0 setup
 ```
 
-Copy `.env.example` to `.env` and set `OPENAI_API_KEY` (and `SESSION_ENCRYPTION_KEY`, 32+ chars) before using AI features.
+Copy `.env.example` to `.env` and set `DEEPSEEK_API_KEY` (and `SESSION_ENCRYPTION_KEY`, 32+ chars) before using AI features.
 
 ## Put it online (Railway — recommended if you already use Railway)
 

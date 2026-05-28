@@ -14,6 +14,8 @@ export interface LlmConfig {
   provider: string;
   model: string;
   apiKey: string;
+  /** OpenAI-compatible API base (e.g. DeepSeek: https://api.deepseek.com) */
+  baseURL?: string;
   temperature?: number;
   maxTokens?: number;
 }
@@ -40,7 +42,10 @@ export interface GenerateReplyInput {
 }
 
 function getOpenAI(config: LlmConfig): OpenAI {
-  return new OpenAI({ apiKey: config.apiKey });
+  return new OpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+  });
 }
 
 async function chatJson(

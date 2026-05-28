@@ -12,26 +12,16 @@ import {
   generateReply,
   summarizeProfile,
   isWithinBusinessHours,
-  type LlmConfig,
+  resolveLlmConfig,
 } from "@linkedin-agent/agent";
 import { enqueueJob } from "./queue.js";
 import { checkRateLimit, recordRateLimitAction } from "./rate-limit.js";
 
-async function getLlmConfig(): Promise<LlmConfig> {
+async function getLlmConfig() {
   const agency = await prisma.agencySettings.findUniqueOrThrow({
     where: { id: "singleton" },
   });
-  const apiKey =
-    agency.llmProvider === "anthropic"
-      ? process.env.ANTHROPIC_API_KEY ?? ""
-      : process.env.OPENAI_API_KEY ?? "";
-  return {
-    provider: agency.llmProvider,
-    model: agency.llmModel,
-    apiKey,
-    temperature: agency.temperature,
-    maxTokens: agency.maxTokens,
-  };
+  return resolveLlmConfig(agency);
 }
 
 async function getPlaybook(campaignId: string): Promise<PlaybookConfig> {

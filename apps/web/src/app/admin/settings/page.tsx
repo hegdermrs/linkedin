@@ -50,10 +50,18 @@ function AdminSettingsContent() {
             <label>LLM provider</label>
             <select
               value={settings.llmProvider}
-              onChange={(e) =>
-                setSettings({ ...settings, llmProvider: e.target.value })
-              }
+              onChange={(e) => {
+                const llmProvider = e.target.value;
+                const llmModel =
+                  llmProvider === "deepseek"
+                    ? "deepseek-chat"
+                    : llmProvider === "openai"
+                      ? "gpt-4o-mini"
+                      : settings.llmModel;
+                setSettings({ ...settings, llmProvider, llmModel });
+              }}
             >
+              <option value="deepseek">DeepSeek (recommended)</option>
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
             </select>
@@ -62,10 +70,16 @@ function AdminSettingsContent() {
             <label>Model</label>
             <input
               value={settings.llmModel}
+              placeholder="deepseek-chat"
               onChange={(e) =>
                 setSettings({ ...settings, llmModel: e.target.value })
               }
             />
+            {settings.llmProvider === "deepseek" && (
+              <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.35rem" }}>
+                Common: deepseek-chat, deepseek-reasoner
+              </p>
+            )}
           </div>
           <div className="form-group">
             <label>Temperature</label>
@@ -97,7 +111,7 @@ function AdminSettingsContent() {
             />
           </div>
           <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "1rem" }}>
-            API keys are set via environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY).
+            Set <code>DEEPSEEK_API_KEY</code> on API and worker (Railway/local). OpenAI key is optional fallback.
           </p>
           <button type="submit">Save</button>
         </form>

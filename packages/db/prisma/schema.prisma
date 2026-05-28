@@ -62,8 +62,8 @@ enum PlaybookVersionStatus {
 model AgencySettings {
   id           String   @id @default("singleton")
   basePrompt   String   @default("") @db.Text
-  llmProvider  String   @default("openai")
-  llmModel     String   @default("gpt-4o-mini")
+  llmProvider  String   @default("deepseek")
+  llmModel     String   @default("deepseek-chat")
   temperature  Float    @default(0.7)
   maxTokens    Int      @default(1024)
   updatedAt    DateTime @updatedAt
