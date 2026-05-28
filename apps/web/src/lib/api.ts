@@ -6,8 +6,6 @@ function getApiBase(): string {
   return process.env.API_URL?.replace(/\/$/, "") ?? "http://localhost:3001";
 }
 
-const API_URL = getApiBase();
-
 export interface SessionUser {
   id: string;
   email: string;
