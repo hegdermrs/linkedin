@@ -133,7 +133,9 @@ Redeploy **web** after you set `NEXT_PUBLIC_API_URL` (it is baked in at build ti
 1. Open your **website** URL.
 2. Log in with `AGENCY_ADMIN_EMAIL` / `AGENCY_ADMIN_PASSWORD`.
 
-If login fails, run seed once on the API service (Railway → API → **Shell**):
+Login uses `AGENCY_ADMIN_EMAIL` / `AGENCY_ADMIN_PASSWORD` on the **api** service. Seed runs automatically when **api** starts.
+
+Manual seed (if needed): click **api** (open full page) → **Shell** tab, or right-click **api** → **Copy SSH command**, then run:
 
 ```bash
 pnpm --filter @linkedin-agent/db seed
