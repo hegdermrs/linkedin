@@ -17,9 +17,13 @@ function AccountsContent() {
   const [connecting, setConnecting] = useState(false);
   const [connectMessage, setConnectMessage] = useState("");
   const [connectError, setConnectError] = useState("");
+  const [apiKeyFingerprint, setApiKeyFingerprint] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const refresh = useCallback(async () => {
-    setAccounts(await api.accounts(tenantId));
+    const data = await api.linkedInAccounts(tenantId);
+    setAccounts(data.accounts);
+    setApiKeyFingerprint(data.sessionKeyFingerprint);
   }, [tenantId]);
 
   useEffect(() => {
@@ -79,11 +83,19 @@ function AccountsContent() {
   }
 
   async function saveSession(accountId: string) {
-    await api.saveSession(tenantId, accountId, session.trim());
-    setSaved(true);
-    setSession("");
+    setSaving(true);
+    setSaved(false);
     setConnectError("");
-    await refresh();
+    try {
+      await api.saveSession(tenantId, accountId, session.trim());
+      setSaved(true);
+      setSession("");
+      await refresh();
+    } catch (e) {
+      setConnectError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const primary = accounts[0];
@@ -120,11 +132,18 @@ function AccountsContent() {
                   : "not connected"}
             </span>
           </p>
+          {apiKeyFingerprint && (
+            <p style={{ fontSize: "0.9rem", color: "var(--muted)", marginBottom: "1rem" }}>
+              Railway key fingerprint: <code>{apiKeyFingerprint}</code> — after{" "}
+              <code>pnpm login</code> on your PC, the terminal must show the{" "}
+              <strong>same</strong> fingerprint.
+            </p>
+          )}
           {primary.hasSessionBlob && !isConnected && (
             <p style={{ fontSize: "0.9rem", color: "var(--muted)", marginBottom: "1rem" }}>
-              A session was saved but cannot be decrypted.{" "}
-              <code>SESSION_ENCRYPTION_KEY</code> on your PC must match Railway{" "}
-              <strong>api</strong> and <strong>worker</strong> exactly.
+              A session was saved but cannot be decrypted. Put the same{" "}
+              <code>SESSION_ENCRYPTION_KEY</code> in PC <code>.env</code> and Railway{" "}
+              <strong>api</strong> + <strong>worker</strong>, run login again, then paste.
             </p>
           )}
           {(connectError || primary.lastError) && (
@@ -227,8 +246,12 @@ function AccountsContent() {
                   placeholder="Paste the full encrypted blob from the login command…"
                 />
               </div>
-              <button type="button" onClick={() => saveSession(primary.id)}>
-                Save session
+              <button
+                type="button"
+                onClick={() => saveSession(primary.id)}
+                disabled={!session.trim() || saving}
+              >
+                {saving ? "Saving…" : "Save session"}
               </button>
             </div>
           )}

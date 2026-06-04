@@ -1,10 +1,23 @@
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  scryptSync,
+} from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";
 
 function getKey(): Buffer {
-  const secret = process.env.SESSION_ENCRYPTION_KEY ?? "dev-key-change-in-production!!";
+  const secret = (
+    process.env.SESSION_ENCRYPTION_KEY ?? "dev-key-change-in-production!!"
+  ).trim();
   return scryptSync(secret, "linkedin-agent-salt", 32);
+}
+
+/** Compare PC vs Railway: fingerprints must match after login CLI / api deploy. */
+export function sessionKeyFingerprint(): string {
+  return createHash("sha256").update(getKey()).digest("hex").slice(0, 12);
 }
 
 export function encryptSession(plaintext: string): string {
@@ -35,7 +48,10 @@ export function decryptSession(ciphertext: string): string {
 
 /** Normalize paste from terminal / file (strip whitespace). */
 export function normalizeSessionBlob(input: string): string {
-  return input.trim().replace(/\s+/g, "");
+  let s = input.trim().replace(/\s+/g, "");
+  const pad = s.length % 4;
+  if (pad) s += "=".repeat(4 - pad);
+  return s;
 }
 
 /**

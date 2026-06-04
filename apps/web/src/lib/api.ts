@@ -171,8 +171,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  accounts: (tenantId: string) =>
-    fetchApi<LinkedInAccountRow[]>(`/admin/tenants/${tenantId}/accounts`),
+  linkedInAccounts: (tenantId: string) =>
+    fetchApi<{
+      sessionKeyFingerprint: string;
+      accounts: LinkedInAccountRow[];
+    }>(`/admin/tenants/${tenantId}/accounts`),
   saveSession: (tenantId: string, accountId: string, sessionEncrypted: string) =>
     fetchApi<unknown>(
       `/admin/tenants/${tenantId}/accounts/${accountId}/session`,

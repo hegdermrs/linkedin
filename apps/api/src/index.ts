@@ -18,6 +18,7 @@ import {
 import {
   assertValidEncryptedSession,
   canDecryptSession,
+  sessionKeyFingerprint,
 } from "@linkedin-agent/linkedin";
 import {
   authenticate,
@@ -392,11 +393,14 @@ app.get("/admin/tenants/:tenantId/accounts", async (request) => {
   const accounts = await prisma.linkedInAccount.findMany({
     where: { tenantId },
   });
-  return accounts.map((a) => ({
-    ...a,
-    isConnected: canDecryptSession(a.sessionEncrypted),
-    hasSessionBlob: Boolean(a.sessionEncrypted),
-  }));
+  return {
+    sessionKeyFingerprint: sessionKeyFingerprint(),
+    accounts: accounts.map((a) => ({
+      ...a,
+      isConnected: canDecryptSession(a.sessionEncrypted),
+      hasSessionBlob: Boolean(a.sessionEncrypted),
+    })),
+  };
 });
 
 app.put("/admin/tenants/:tenantId/accounts/:accountId/session", async (request) => {
