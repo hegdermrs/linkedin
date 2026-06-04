@@ -1,6 +1,7 @@
 import { scryptSync, timingSafeEqual, randomBytes } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import { prisma, UserRole } from "@linkedin-agent/db";
+import { loadSession, removeSession, saveSession } from "./session-store.js";
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -27,21 +28,14 @@ export interface SessionUser {
   tenantId: string | null;
 }
 
-const sessions = new Map<string, SessionUser>();
-
-export function createSession(user: SessionUser): string {
+export async function createSession(user: SessionUser): Promise<string> {
   const token = randomBytes(32).toString("hex");
-  sessions.set(token, user);
+  await saveSession(token, user);
   return token;
 }
 
-export function getSession(token: string | undefined): SessionUser | null {
-  if (!token) return null;
-  return sessions.get(token) ?? null;
-}
-
-export function destroySession(token: string): void {
-  sessions.delete(token);
+export async function destroySession(token: string): Promise<void> {
+  await removeSession(token);
 }
 
 /** SameSite=None is required for cross-origin API calls; Lax works when web proxies /auth to api. */
@@ -121,10 +115,18 @@ export async function authenticate(
   };
 }
 
-export function requireAuth(request: FastifyRequest): SessionUser {
+export async function requireAuth(
+  request: FastifyRequest
+): Promise<SessionUser> {
   const token = request.cookies.session;
-  const user = getSession(token);
-  if (!user) throw { statusCode: 401, message: "Unauthorized" };
+  const user = await loadSession(token);
+  if (!user) {
+    throw {
+      statusCode: 401,
+      message:
+        "Unauthorized — sign in again (sessions are stored in Redis after api restarts).",
+    };
+  }
   return user;
 }
 

@@ -90,7 +90,7 @@ app.post("/auth/login", async (request, reply) => {
   const loginId = (body.username ?? body.email ?? "").trim();
   const user = await authenticate(loginId, body.password ?? "");
   if (!user) return reply.status(401).send({ error: "Invalid credentials" });
-  const token = createSession(user);
+  const token = await createSession(user);
   reply.setCookie("session", token, sessionCookieOptions(request));
   return {
     user: {
@@ -105,13 +105,13 @@ app.post("/auth/login", async (request, reply) => {
 
 app.post("/auth/logout", async (request, reply) => {
   const token = request.cookies.session;
-  if (token) destroySession(token);
+  if (token) await destroySession(token);
   reply.clearCookie("session", clearSessionCookieOptions(request));
   return { ok: true };
 });
 
 app.get("/auth/me", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const effectiveTenantId = await resolveTenantId(user);
   const tenants =
     user.role === UserRole.agency_admin
@@ -124,7 +124,7 @@ app.get("/auth/me", async (request) => {
 });
 
 app.get("/admin/tenants", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   requireAgencyAdmin(user);
   return prisma.tenant.findMany({
     orderBy: { createdAt: "desc" },
@@ -136,7 +136,7 @@ app.get("/admin/tenants", async (request) => {
 });
 
 app.post("/admin/tenants", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   requireAgencyAdmin(user);
   const body = request.body as { name: string; slug: string };
   const tenant = await prisma.tenant.create({
@@ -166,12 +166,12 @@ app.post("/admin/tenants", async (request) => {
 });
 
 app.get("/admin/templates", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   return prisma.playbookTemplate.findMany();
 });
 
 app.get("/admin/settings", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const s = await getAgencySettings();
   return {
     basePrompt: s.basePrompt,
@@ -183,7 +183,7 @@ app.get("/admin/settings", async (request) => {
 });
 
 app.put("/admin/settings", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const body = request.body as Record<string, unknown>;
   return prisma.agencySettings.update({
     where: { id: "singleton" },
@@ -198,7 +198,7 @@ app.put("/admin/settings", async (request) => {
 });
 
 app.get("/admin/tenants/:tenantId/playbook", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const { tenantId } = request.params as { tenantId: string };
   const campaign = await prisma.campaign.findFirst({
     where: { tenantId },
@@ -217,7 +217,7 @@ app.get("/admin/tenants/:tenantId/playbook", async (request) => {
 });
 
 app.put("/admin/tenants/:tenantId/playbook/draft", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const { tenantId } = request.params as { tenantId: string };
   const body = request.body as { config: unknown; label?: string };
   const config = PlaybookConfigSchema.parse(body.config);
@@ -249,7 +249,7 @@ app.put("/admin/tenants/:tenantId/playbook/draft", async (request) => {
 });
 
 app.post("/admin/tenants/:tenantId/playbook/publish", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const { tenantId } = request.params as { tenantId: string };
   const campaign = await prisma.campaign.findFirstOrThrow({
     where: { tenantId },
@@ -265,7 +265,7 @@ app.post("/admin/tenants/:tenantId/playbook/publish", async (request) => {
 });
 
 app.post("/admin/tenants/:tenantId/playbook/apply-template", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const { tenantId } = request.params as { tenantId: string };
   const body = request.body as { niche?: string; campaignId?: string };
   const niche = body.niche ?? "jim-wrestlers";
@@ -311,7 +311,7 @@ app.post("/admin/tenants/:tenantId/playbook/apply-template", async (request) => 
 });
 
 app.post("/admin/tenants/:tenantId/playbook/analyze-conversations", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const { tenantId } = request.params as { tenantId: string };
   const agency = await getAgencySettings();
   const prospects = await prisma.prospect.findMany({
@@ -361,7 +361,7 @@ app.post("/admin/tenants/:tenantId/playbook/analyze-conversations", async (reque
 });
 
 app.post("/admin/tenants/:tenantId/playbook/preview", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const body = request.body as { config?: unknown };
   const config = PlaybookConfigSchema.parse(
     body.config ?? JIM_WRESTLERS_PLAYBOOK
@@ -383,7 +383,7 @@ app.post("/admin/tenants/:tenantId/playbook/preview", async (request) => {
 });
 
 app.get("/admin/tenants/:tenantId/accounts", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const { tenantId } = request.params as { tenantId: string };
   const accounts = await prisma.linkedInAccount.findMany({
     where: { tenantId },
@@ -395,7 +395,7 @@ app.get("/admin/tenants/:tenantId/accounts", async (request) => {
 });
 
 app.put("/admin/tenants/:tenantId/accounts/:accountId/session", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const { accountId } = request.params as { accountId: string };
   const body = request.body as { sessionEncrypted: string };
   return prisma.linkedInAccount.update({
@@ -407,7 +407,7 @@ app.put("/admin/tenants/:tenantId/accounts/:accountId/session", async (request) 
 app.post(
   "/admin/tenants/:tenantId/accounts/:accountId/connect",
   async (request) => {
-    requireAgencyAdmin(requireAuth(request));
+    requireAgencyAdmin(await requireAuth(request));
     const { tenantId, accountId } = request.params as {
       tenantId: string;
       accountId: string;
@@ -424,7 +424,7 @@ app.post(
 app.get(
   "/admin/tenants/:tenantId/accounts/:accountId/connect",
   async (request) => {
-    requireAgencyAdmin(requireAuth(request));
+    requireAgencyAdmin(await requireAuth(request));
     const { accountId } = request.params as { accountId: string };
     const job = getConnectJob(accountId);
     const account = await prisma.linkedInAccount.findUnique({
@@ -440,7 +440,7 @@ app.get(
 );
 
 app.get("/admin/tenants/:tenantId/audit", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   const { tenantId } = request.params as { tenantId: string };
   return prisma.auditLog.findMany({
     where: { tenantId },
@@ -450,7 +450,7 @@ app.get("/admin/tenants/:tenantId/audit", async (request) => {
 });
 
 app.get("/dashboard/metrics", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const q = request.query as { tenantId?: string; campaignId?: string };
   const tenantId = await resolveTenantId(user, q.tenantId);
 
@@ -508,7 +508,7 @@ app.get("/dashboard/metrics", async (request) => {
 });
 
 app.get("/prospects", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const q = request.query as { tenantId?: string; stage?: string; limit?: string };
   const tenantId = await resolveTenantId(user, q.tenantId);
   return prisma.prospect.findMany({
@@ -526,7 +526,7 @@ app.get("/prospects", async (request) => {
 });
 
 app.get("/prospects/:id", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const { id } = request.params as { id: string };
   const prospect = await prisma.prospect.findUniqueOrThrow({
     where: { id },
@@ -542,7 +542,7 @@ app.get("/prospects/:id", async (request) => {
 });
 
 app.post("/campaigns/:campaignId/import", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const { campaignId } = request.params as { campaignId: string };
   const campaign = await prisma.campaign.findUniqueOrThrow({
     where: { id: campaignId },
@@ -570,7 +570,7 @@ app.post("/campaigns/:campaignId/import", async (request) => {
 });
 
 app.post("/campaigns/:campaignId/import-urls", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const { campaignId } = request.params as { campaignId: string };
   const body = request.body as { urls?: string; text?: string };
   const text = (body.urls ?? body.text ?? "").trim();
@@ -605,14 +605,14 @@ app.post("/campaigns/:campaignId/import-urls", async (request) => {
 });
 
 app.get("/campaigns", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const q = request.query as { tenantId?: string };
   const tenantId = await resolveTenantId(user, q.tenantId);
   return prisma.campaign.findMany({ where: { tenantId } });
 });
 
 app.post("/tenant/pause", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const body = request.body as { paused: boolean; tenantId?: string };
   const tenantId = await resolveTenantId(user, body.tenantId);
   return prisma.tenant.update({
@@ -622,7 +622,7 @@ app.post("/tenant/pause", async (request) => {
 });
 
 app.put("/tenant/settings", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const body = request.body as {
     calendlyUrl?: string;
     timezone?: string;
@@ -655,7 +655,7 @@ app.put("/tenant/settings", async (request) => {
 });
 
 app.post("/orchestrate", async (request) => {
-  const user = requireAuth(request);
+  const user = await requireAuth(request);
   const body = request.body as { tenantId?: string };
   const tenantId = await resolveTenantId(user, body.tenantId);
   await enqueueJob("orchestrate_tenant", { tenantId });
@@ -737,7 +737,7 @@ app.post("/webhooks/calendly", async (request) => {
 });
 
 app.post("/admin/cron/trigger-all", async (request) => {
-  requireAgencyAdmin(requireAuth(request));
+  requireAgencyAdmin(await requireAuth(request));
   await enqueueOrchestrateAll();
   return { ok: true };
 });

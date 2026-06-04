@@ -21,7 +21,15 @@ function SetupContent() {
 
   async function afterImport(r: { imported: number; skipped: number }) {
     setResult(`Imported ${r.imported} prospects (${r.skipped} skipped).`);
-    await api.orchestrate(tenantId);
+    try {
+      await api.orchestrate(tenantId);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Orchestrate failed";
+      setResult(
+        (prev) =>
+          `${prev} Outreach queue: ${msg.includes("Unauthorized") ? "sign in again, then open Dashboard and resume." : msg}`
+      );
+    }
   }
 
   async function importCsv() {
@@ -32,10 +40,18 @@ function SetupContent() {
     try {
       await afterImport(await api.importCsv(campaigns[0].id, file));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Import failed");
+      setError(formatImportError(e));
     } finally {
       setImporting(false);
     }
+  }
+
+  function formatImportError(e: unknown): string {
+    const msg = e instanceof Error ? e.message : "Import failed";
+    if (msg.includes("Unauthorized")) {
+      return "Session expired — log out and sign in again, then retry. (Api must have REDIS_URL set on Railway.)";
+    }
+    return msg;
   }
 
   async function importUrls() {
@@ -47,7 +63,7 @@ function SetupContent() {
       await afterImport(await api.importUrls(campaigns[0].id, urlText));
       setUrlText("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Import failed");
+      setError(formatImportError(e));
     } finally {
       setImporting(false);
     }
