@@ -16,6 +16,10 @@ import {
   resolveLlmConfig,
 } from "@linkedin-agent/agent";
 import {
+  assertValidEncryptedSession,
+  canDecryptSession,
+} from "@linkedin-agent/linkedin";
+import {
   authenticate,
   createSession,
   destroySession,
@@ -390,7 +394,8 @@ app.get("/admin/tenants/:tenantId/accounts", async (request) => {
   });
   return accounts.map((a) => ({
     ...a,
-    isConnected: Boolean(a.sessionEncrypted),
+    isConnected: canDecryptSession(a.sessionEncrypted),
+    hasSessionBlob: Boolean(a.sessionEncrypted),
   }));
 });
 
@@ -398,9 +403,16 @@ app.put("/admin/tenants/:tenantId/accounts/:accountId/session", async (request) 
   requireAgencyAdmin(await requireAuth(request));
   const { accountId } = request.params as { accountId: string };
   const body = request.body as { sessionEncrypted: string };
+  let blob: string;
+  try {
+    blob = assertValidEncryptedSession(body.sessionEncrypted ?? "");
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Invalid session";
+    throw { statusCode: 400, message };
+  }
   return prisma.linkedInAccount.update({
     where: { id: accountId },
-    data: { sessionEncrypted: body.sessionEncrypted, status: "active", lastError: null },
+    data: { sessionEncrypted: blob, status: "active", lastError: null },
   });
 });
 
@@ -499,7 +511,7 @@ app.get("/dashboard/metrics", async (request) => {
     accountStatus: account?.sessionEncrypted
       ? (account.status ?? "active")
       : "disconnected",
-    linkedInConnected: Boolean(account?.sessionEncrypted),
+    linkedInConnected: canDecryptSession(account?.sessionEncrypted),
     accountLabel: account?.label,
     lastError: account?.lastError,
     dailyMetrics: metrics,

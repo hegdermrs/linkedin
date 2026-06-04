@@ -541,16 +541,25 @@ async function handleLinkedInError(
   error: unknown
 ): Promise<void> {
   const msg = error instanceof Error ? error.message : String(error);
+  const sessionKeyMismatch =
+    msg.includes("authenticate") ||
+    msg.includes("Unsupported state") ||
+    msg.includes("SESSION_ENCRYPTION_KEY");
   const status =
     msg.includes("SECURITY_CHALLENGE") || msg.includes("captcha")
       ? "needs_human"
-      : msg.includes("limit")
-        ? "rate_limited"
-        : "active";
+      : sessionKeyMismatch
+        ? "needs_human"
+        : msg.includes("limit")
+          ? "rate_limited"
+          : "active";
+  const lastError = sessionKeyMismatch
+    ? "SESSION_ENCRYPTION_KEY mismatch — re-run login on your PC with the same key as Railway api/worker, then paste a new session."
+    : msg;
 
   await prisma.linkedInAccount.update({
     where: { id: linkedInAccountId },
-    data: { status, lastError: msg },
+    data: { status, lastError },
   });
 }
 

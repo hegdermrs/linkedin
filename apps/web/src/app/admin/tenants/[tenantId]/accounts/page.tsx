@@ -102,16 +102,31 @@ function AccountsContent() {
       {primary && (
         <div className="card" style={{ marginBottom: "1.5rem" }}>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>
-            {isConnected ? "Connected" : "Not connected yet"}
+            {isConnected
+              ? "Connected"
+              : primary.hasSessionBlob
+                ? "Session invalid"
+                : "Not connected yet"}
           </h2>
           <p style={{ marginBottom: "1rem" }}>
             Status:{" "}
             <span
               className={`badge ${isConnected ? "success" : "warning"}`}
             >
-              {isConnected ? "connected" : "not connected"}
+              {isConnected
+                ? "connected"
+                : primary.hasSessionBlob
+                  ? "key mismatch — re-paste"
+                  : "not connected"}
             </span>
           </p>
+          {primary.hasSessionBlob && !isConnected && (
+            <p style={{ fontSize: "0.9rem", color: "var(--muted)", marginBottom: "1rem" }}>
+              A session was saved but cannot be decrypted.{" "}
+              <code>SESSION_ENCRYPTION_KEY</code> on your PC must match Railway{" "}
+              <strong>api</strong> and <strong>worker</strong> exactly.
+            </p>
+          )}
           {(connectError || primary.lastError) && (
             <div className="alert" style={{ marginBottom: "1rem" }}>
               {connectError || primary.lastError}

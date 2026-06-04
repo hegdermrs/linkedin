@@ -258,6 +258,7 @@ export interface LinkedInAccountRow {
   status: string;
   lastError: string | null;
   isConnected: boolean;
+  hasSessionBlob?: boolean;
 }
 
 export interface ConnectJob {
