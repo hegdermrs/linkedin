@@ -136,7 +136,16 @@ Redeploy **web** after you set `NEXT_PUBLIC_API_URL` (it is baked in at build ti
 
 Login uses `AGENCY_ADMIN_USERNAME` / `AGENCY_ADMIN_PASSWORD` on the **api** service. Seed runs automatically when **api** starts.
 
-Manual seed (if needed): click **api** (open full page) → **Shell** tab, or right-click **api** → **Copy SSH command**, then run:
+If login says **`User.username` does not exist**, the database schema is behind the app. Open **api** → **Shell** and run:
+
+```bash
+cd /app/packages/db && npx prisma db push
+cd /app && pnpm --filter @linkedin-agent/db seed
+```
+
+Then restart **api** (or redeploy). After a code deploy, **api** should run `db push` automatically on start.
+
+Manual seed only (schema already up to date):
 
 ```bash
 pnpm --filter @linkedin-agent/db seed
