@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { PlaybookConfig } from "@linkedin-agent/shared";
 
 const DEFAULT_CONFIG: PlaybookConfig = {
+  senderName: "Jim",
   brand: {
     businessName: "",
     senderPersona: "",
