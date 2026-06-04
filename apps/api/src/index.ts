@@ -9,6 +9,7 @@ import {
 } from "@linkedin-agent/shared";
 import {
   analyzeConversationInsights,
+  DEFAULT_WRESTLER_PLAYBOOK,
   getJimPlaybookByNiche,
   JIM_WRESTLERS_PLAYBOOK,
   previewReply,
