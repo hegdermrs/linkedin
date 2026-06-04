@@ -1,8 +1,4 @@
-export interface MessageContext {
-  direction: "inbound" | "outbound";
-  text: string;
-  sentAt: string;
-}
+import type { MessageContext } from "./llm.js";
 
 export type JimStage =
   | "0"

@@ -29,6 +29,10 @@ const DEFAULT_CONFIG: PlaybookConfig = {
     businessHoursEnd: 17,
     stopPhrases: ["not interested", "stop"],
     maxConnectionNoteChars: 300,
+    followUpDelayHours: 120,
+    secondFollowUpDelayHours: 168,
+    maxSentencesPerMessage: 6,
+    requireSenderSignOff: false,
   },
 };
 
