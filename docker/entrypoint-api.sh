@@ -3,7 +3,8 @@ set -e
 
 echo "==> Applying database schema (prisma db push)..."
 cd /app/packages/db
-npx prisma db push
+# Required when adding username / making email optional on an existing DB (Prisma safety prompt).
+npx prisma db push --accept-data-loss
 
 cd /app
 echo "==> Seeding database..."

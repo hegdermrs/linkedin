@@ -20,7 +20,7 @@ export default function LoginPage() {
       const msg = err instanceof Error ? err.message : "Login failed";
       setError(
         msg.includes("User.username") || msg.includes("does not exist")
-          ? "Database needs a schema update. In Railway → api → Shell run: cd /app/packages/db && npx prisma db push && cd /app && pnpm --filter @linkedin-agent/db seed — then restart api."
+          ? "Database needs a schema update. In Railway → api → Shell run: cd /app/packages/db && npx prisma db push --accept-data-loss && cd /app && pnpm --filter @linkedin-agent/db seed — then restart api."
           : msg === "Invalid credentials"
             ? "Invalid credentials — use AGENCY_ADMIN_USERNAME and AGENCY_ADMIN_PASSWORD from Railway (api service), then run seed in api Shell."
             : msg

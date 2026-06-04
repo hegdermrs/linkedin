@@ -32,6 +32,28 @@ async function main() {
   const adminPassword = process.env.AGENCY_ADMIN_PASSWORD ?? "changeme";
   const adminEmail = process.env.AGENCY_ADMIN_EMAIL ?? null;
 
+  const withoutUsername = await prisma.user.findMany({
+    where: { username: null },
+  });
+  for (const u of withoutUsername) {
+    const base =
+      u.email?.split("@")[0]?.replace(/[^a-zA-Z0-9_-]/g, "") || `user-${u.id.slice(0, 8)}`;
+    let candidate = base;
+    let n = 0;
+    while (
+      await prisma.user.findFirst({
+        where: { username: candidate, NOT: { id: u.id } },
+      })
+    ) {
+      n += 1;
+      candidate = `${base}${n}`;
+    }
+    await prisma.user.update({
+      where: { id: u.id },
+      data: { username: candidate },
+    });
+  }
+
   const existingAdmin = await prisma.user.findFirst({
     where: {
       OR: [

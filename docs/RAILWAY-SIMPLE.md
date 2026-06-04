@@ -139,7 +139,7 @@ Login uses `AGENCY_ADMIN_USERNAME` / `AGENCY_ADMIN_PASSWORD` on the **api** serv
 If login says **`User.username` does not exist**, the database schema is behind the app. Open **api** → **Shell** and run:
 
 ```bash
-cd /app/packages/db && npx prisma db push
+cd /app/packages/db && npx prisma db push --accept-data-loss
 cd /app && pnpm --filter @linkedin-agent/db seed
 ```
 
