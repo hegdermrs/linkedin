@@ -1,6 +1,8 @@
 import { PrismaClient, UserRole } from "@prisma/client";
-import { createHash, randomBytes, scryptSync } from "node:crypto";
-import { DEFAULT_WRESTLER_PLAYBOOK } from "../../agent/src/default-playbook.js";
+import { randomBytes, scryptSync } from "node:crypto";
+import { JIM_AGENCY_BASE_PROMPT } from "../../agent/src/jim-base-prompt.js";
+import { JIM_ATHLETES_PLAYBOOK } from "../../agent/src/playbooks/jim-athletes.js";
+import { JIM_WRESTLERS_PLAYBOOK } from "../../agent/src/playbooks/jim-wrestlers.js";
 
 const prisma = new PrismaClient();
 
@@ -15,12 +17,15 @@ async function main() {
     where: { id: "singleton" },
     create: {
       id: "singleton",
-      basePrompt:
-        "You are a helpful LinkedIn outreach assistant. Be authentic, concise, and respectful. Never be pushy.",
+      basePrompt: JIM_AGENCY_BASE_PROMPT,
       llmProvider: "deepseek",
       llmModel: "deepseek-chat",
     },
-    update: {},
+    update: {
+      basePrompt: JIM_AGENCY_BASE_PROMPT,
+      llmProvider: "deepseek",
+      llmModel: "deepseek-chat",
+    },
   });
 
   const adminEmail = process.env.AGENCY_ADMIN_EMAIL ?? "admin@example.com";
@@ -41,50 +46,92 @@ async function main() {
   });
 
   await prisma.playbookTemplate.upsert({
-    where: { niche: "wrestlers" },
+    where: { niche: "jim-wrestlers" },
     create: {
-      name: "College Wrestlers",
-      niche: "wrestlers",
-      config: DEFAULT_WRESTLER_PLAYBOOK as object,
+      name: "Jim Harshaw — Former Wrestlers",
+      niche: "jim-wrestlers",
+      config: JIM_WRESTLERS_PLAYBOOK as object,
     },
-    update: { config: DEFAULT_WRESTLER_PLAYBOOK as object },
+    update: { name: "Jim Harshaw — Former Wrestlers", config: JIM_WRESTLERS_PLAYBOOK as object },
+  });
+
+  await prisma.playbookTemplate.upsert({
+    where: { niche: "jim-athletes" },
+    create: {
+      name: "Jim Harshaw — College Athletes",
+      niche: "jim-athletes",
+      config: JIM_ATHLETES_PLAYBOOK as object,
+    },
+    update: { name: "Jim Harshaw — College Athletes", config: JIM_ATHLETES_PLAYBOOK as object },
   });
 
   const tenant = await prisma.tenant.upsert({
-    where: { slug: "demo-coach" },
-    create: { name: "Demo Coach", slug: "demo-coach" },
-    update: {},
+    where: { slug: "jim-harshaw" },
+    create: { name: "Jim Harshaw", slug: "jim-harshaw" },
+    update: { name: "Jim Harshaw" },
   });
 
-  // Remove legacy demo coach login (admin-only setup)
   await prisma.user.deleteMany({ where: { email: "coach@demo.com" } });
 
-  let campaign = await prisma.campaign.findFirst({
-    where: { tenantId: tenant.id, niche: "wrestlers" },
+  let wrestlerCampaign = await prisma.campaign.findFirst({
+    where: { tenantId: tenant.id, niche: "jim-wrestlers" },
   });
-
-  if (!campaign) {
-    campaign = await prisma.campaign.create({
+  if (!wrestlerCampaign) {
+    wrestlerCampaign = await prisma.campaign.create({
       data: {
         tenantId: tenant.id,
-        name: "Wrestler Outreach",
-        niche: "wrestlers",
+        name: "Reveal Your Path — Wrestlers",
+        niche: "jim-wrestlers",
       },
     });
   }
 
-  const existingVersion = await prisma.playbookVersion.findFirst({
-    where: { campaignId: campaign.id, status: "published" },
+  const publishedW = await prisma.playbookVersion.findFirst({
+    where: { campaignId: wrestlerCampaign.id, status: "published" },
   });
-
-  if (!existingVersion) {
+  if (!publishedW) {
     await prisma.playbookVersion.create({
       data: {
-        campaignId: campaign.id,
+        campaignId: wrestlerCampaign.id,
         version: 1,
         status: "published",
-        label: "Initial wrestler playbook",
-        config: DEFAULT_WRESTLER_PLAYBOOK as object,
+        label: "Jim wrestlers voice",
+        config: JIM_WRESTLERS_PLAYBOOK as object,
+        publishedAt: new Date(),
+      },
+    });
+  } else {
+    await prisma.playbookVersion.update({
+      where: { id: publishedW.id },
+      data: { config: JIM_WRESTLERS_PLAYBOOK as object },
+    });
+  }
+
+  let athleteCampaign = await prisma.campaign.findFirst({
+    where: { tenantId: tenant.id, niche: "jim-athletes" },
+  });
+  if (!athleteCampaign) {
+    athleteCampaign = await prisma.campaign.create({
+      data: {
+        tenantId: tenant.id,
+        name: "Reveal Your Path — All Athletes",
+        niche: "jim-athletes",
+      },
+    });
+  }
+
+  if (
+    !(await prisma.playbookVersion.findFirst({
+      where: { campaignId: athleteCampaign.id, status: "published" },
+    }))
+  ) {
+    await prisma.playbookVersion.create({
+      data: {
+        campaignId: athleteCampaign.id,
+        version: 1,
+        status: "published",
+        label: "Jim athletes voice",
+        config: JIM_ATHLETES_PLAYBOOK as object,
         publishedAt: new Date(),
       },
     });
@@ -97,7 +144,7 @@ async function main() {
     await prisma.linkedInAccount.create({
       data: {
         tenantId: tenant.id,
-        label: "Primary LinkedIn",
+        label: "Jim LinkedIn",
         status: "disconnected",
       },
     });
@@ -110,7 +157,7 @@ async function main() {
 
   console.log("Seed complete:");
   console.log(`  Admin login: ${adminEmail} / ${adminPassword}`);
-  console.log(`  Sample client tenant: demo-coach (no separate login — use admin + client picker)`);
+  console.log(`  Client tenant: jim-harshaw (wrestlers + athletes campaigns)`);
 }
 
 main()

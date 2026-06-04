@@ -3,3 +3,7 @@ export * from "./compile-prompt.js";
 export * from "./guardrails.js";
 export * from "./llm.js";
 export * from "./resolve-llm.js";
+export * from "./jim-base-prompt.js";
+export * from "./jim-stage.js";
+export * from "./playbooks/index.js";
+export * from "./conversation-insights.js";

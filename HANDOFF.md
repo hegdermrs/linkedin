@@ -4,7 +4,7 @@
 
 **Do not edit** the plan file `linkedin_outreach_agent` in `.cursor/plans` — track progress here instead.
 
-**Last updated:** 2026-05-27 (handoff created after aborted build-fix subagent)
+**Last updated:** 2026-05-28 (Jim Harshaw voice playbooks integrated)
 
 ---
 
@@ -25,7 +25,7 @@ Monorepo (`pnpm` workspaces): `apps/web`, `apps/api`, `apps/worker`, `packages/{
 | Monorepo scaffold | root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `docker-compose.yml`, `.env.example`, `README.md` | pnpm 9.15, Node 20+ |
 | Database | `packages/db/prisma/schema.prisma` | Tenants, campaigns, prospects, jobs, playbooks, metrics, audit |
 | Shared types | `packages/shared` | Zod `PlaybookConfig`, queue job types, `redis.ts` helper |
-| Agent / playbook | `packages/agent` | LLM (`openai`), `compile-prompt`, guardrails, `DEFAULT_WRESTLER_PLAYBOOK` |
+| Agent / playbook | `packages/agent` | Jim voice: `jim-base-prompt.ts`, `playbooks/jim-wrestlers.ts`, `jim-athletes.ts`, stage inference, conversation insights |
 | LinkedIn automation | `packages/linkedin` | Playwright `LinkedInClient`, session encrypt/decrypt, rate limiter, `pnpm login` CLI |
 | API | `apps/api/src` | Fastify: auth, tenants, playbook draft/publish/preview, CSV import, dashboard, Calendly webhook, orchestrate enqueue |
 | Worker | `apps/worker/src` | BullMQ worker + `orchestrator.ts` (stage machine, job processors) |

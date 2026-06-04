@@ -16,6 +16,7 @@ import {
 } from "@linkedin-agent/agent";
 import { enqueueJob } from "./queue.js";
 import { checkRateLimit, recordRateLimitAction } from "./rate-limit.js";
+import { nextDelayHours } from "./schedule-delay.js";
 
 async function getLlmConfig() {
   const agency = await prisma.agencySettings.findUniqueOrThrow({
@@ -137,12 +138,10 @@ export async function processAnalyzeProfile(
     await client.init();
     const scraped = await client.scrapeProfile(prospect.linkedinUrl);
     const llm = await getLlmConfig();
-    const summary = await summarizeProfile(
-      llm,
-      agency.basePrompt,
-      playbook,
-      scraped
-    );
+    const summary = await summarizeProfile(llm, agency.basePrompt, playbook, {
+      ...scraped,
+      location: scraped.location,
+    });
 
     await prisma.prospect.update({
       where: { id: prospectId },
@@ -173,6 +172,7 @@ export async function processSendConnect(
 ): Promise<void> {
   const prospect = await prisma.prospect.findUniqueOrThrow({
     where: { id: prospectId },
+    include: { campaign: true },
   });
   const playbook = await getPlaybook(prospect.campaignId);
   const agency = await prisma.agencySettings.findUniqueOrThrow({
@@ -191,7 +191,9 @@ export async function processSendConnect(
     messages: [],
     prospect,
     outboundCount: prospect.outboundCount,
+    followUpCount: prospect.followUpCount,
     hasCalendlyInThread: false,
+    campaignNiche: prospect.campaign.niche,
   });
 
   if (reply.guardrailBlocked || !reply.messageText) {
@@ -316,7 +318,10 @@ export async function processSendMessage(
 ): Promise<void> {
   const prospect = await prisma.prospect.findUniqueOrThrow({
     where: { id: prospectId },
-    include: { messages: { orderBy: { sentAt: "asc" } } },
+    include: {
+      messages: { orderBy: { sentAt: "asc" } },
+      campaign: true,
+    },
   });
   const playbook = await getPlaybook(prospect.campaignId);
   const agency = await prisma.agencySettings.findUniqueOrThrow({
@@ -326,6 +331,7 @@ export async function processSendMessage(
   let text = messageText;
   let nextStage = prospect.stage;
   let reasoning = "";
+  let jimStage: string | undefined;
 
   if (!text) {
     const summary = prospect.profileSummary
@@ -349,7 +355,9 @@ export async function processSendMessage(
       })),
       prospect,
       outboundCount: prospect.outboundCount,
+      followUpCount: prospect.followUpCount,
       hasCalendlyInThread,
+      campaignNiche: prospect.campaign.niche,
     });
 
     if (reply.guardrailBlocked || reply.nextStage === "opted_out") {
@@ -369,9 +377,21 @@ export async function processSendMessage(
     text = reply.messageText;
     nextStage = reply.nextStage as ProspectStage;
     reasoning = reply.reasoning;
+    jimStage = reply.jimStage;
   }
 
   if (!text) return;
+
+  const hasInboundEver = prospect.messages.some(
+    (m) => m.direction === MessageDirection.inbound
+  );
+  const nextFollowUp = hasInboundEver
+    ? prospect.followUpCount
+    : prospect.followUpCount + 1;
+  const delayH = nextDelayHours(playbook, {
+    hasInboundEver,
+    followUpCount: nextFollowUp,
+  });
 
   const idempotencyKey = `msg-${prospectId}-${prospect.outboundCount + 1}`;
   const existing = await prisma.message.findUnique({
@@ -412,7 +432,12 @@ export async function processSendMessage(
         data: {
           stage: stageAfter,
           outboundCount: { increment: 1 },
-          nextActionAt: hoursFromNow(playbook.guardrails.minDelayHours),
+          followUpCount: hasInboundEver
+            ? prospect.followUpCount
+            : { increment: 1 },
+          lastJimStage: jimStage ?? undefined,
+          lastOutboundAt: new Date(),
+          nextActionAt: hoursFromNow(delayH),
         },
       }),
     ]);
@@ -469,6 +494,7 @@ export async function processPollInbox(
             data: {
               stage: ProspectStage.conversing,
               lastInboundAt: new Date(),
+              followUpCount: 0,
               nextActionAt: new Date(),
             },
           });

@@ -9,6 +9,11 @@ export const StageKeySchema = z.enum([
 ]);
 
 export const PlaybookConfigSchema = z.object({
+  niche: z
+    .enum(["wrestlers", "athletes", "jim-wrestlers", "jim-athletes", "generic"])
+    .optional(),
+  senderName: z.string().optional().default("Jim"),
+  sequenceGuide: z.string().optional(),
   brand: z.object({
     businessName: z.string(),
     senderPersona: z.string(),
@@ -56,12 +61,19 @@ export const PlaybookConfigSchema = z.object({
       "remove me",
     ]),
     maxConnectionNoteChars: z.number().int().default(300),
+    followUpDelayHours: z.number().min(24).optional().default(120),
+    secondFollowUpDelayHours: z.number().min(24).optional().default(168),
+    maxSentencesPerMessage: z.number().int().min(1).max(10).optional().default(6),
+    requireSenderSignOff: z.boolean().optional().default(false),
   }),
 });
 
 export type PlaybookConfig = z.infer<typeof PlaybookConfigSchema>;
 
 export const AgentReplySchema = z.object({
+  jimStage: z
+    .enum(["0", "1", "2", "2B", "2C", "3", "4a", "4b", "5", "6", "7"])
+    .optional(),
   nextStage: z.enum([
     "imported",
     "profile_analyzed",
@@ -88,6 +100,10 @@ export const ProfileSummarySchema = z.object({
   doNotMention: z.array(z.string()),
   suggestedOpener: z.string(),
   wrestlingAngle: z.string().optional(),
+  sport: z.string().optional(),
+  athleteHook: z.string().optional(),
+  commonalities: z.array(z.string()).optional(),
+  backgroundType: z.string().optional(),
   headline: z.string().optional(),
   about: z.string().optional(),
 });

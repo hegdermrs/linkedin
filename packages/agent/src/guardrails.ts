@@ -7,6 +7,9 @@ const PROFANITY_PATTERN =
 const BANNED_CLAIMS_PATTERN =
   /\b(guaranteed returns|free money|100% profit|medical advice|financial advice)\b/i;
 
+const JIM_CALENDAR_QUESTION =
+  /were you able to find a time on my calendar/i;
+
 export interface GuardrailContext {
   playbook: PlaybookConfig;
   stage: AgentStage;
@@ -14,6 +17,11 @@ export interface GuardrailContext {
   outboundCount: number;
   messageText: string;
   hasCalendlyInThread: boolean;
+  jimStage?: string;
+}
+
+function countSentences(text: string): number {
+  return text.split(/[.!?]+/).filter((s) => s.trim().length > 2).length;
 }
 
 export interface GuardrailResult {
@@ -56,15 +64,43 @@ export function applyGuardrails(ctx: GuardrailContext): GuardrailResult {
     }
   }
 
+  if (JIM_CALENDAR_QUESTION.test(messageText)) {
+    return { allowed: false, reason: "Jim never asks if they found calendar time" };
+  }
+
+  if (/^[\s]*[-•*]\s/m.test(messageText)) {
+    return { allowed: false, reason: "No bullet points in LinkedIn DMs" };
+  }
+
+  const maxSent = g.maxSentencesPerMessage ?? 6;
+  const allowLong = ctx.jimStage === "2B";
+  if (!allowLong && countSentences(messageText) > maxSent) {
+    return {
+      allowed: false,
+      reason: `Exceeds ${maxSent} sentences (Jim voice)`,
+    };
+  }
+
   const calendlyUrl = playbook.stages.call_offered.calendlyUrl;
   const hasCalendly =
     calendlyUrl && messageText.includes(calendlyUrl);
 
-  if (hasCalendly && stage !== "call_offered" && stage !== "conversing") {
+  const calendlyOkStage =
+    stage === "call_offered" ||
+    stage === "conversing" ||
+    ctx.jimStage === "3" ||
+    ctx.jimStage === "5";
+
+  if (hasCalendly && !calendlyOkStage) {
     return { allowed: false, reason: "Calendly only allowed when offering call" };
   }
 
-  if (hasCalendly && ctx.hasCalendlyInThread && stage !== "call_offered") {
+  if (
+    hasCalendly &&
+    ctx.hasCalendlyInThread &&
+    stage !== "call_offered" &&
+    ctx.jimStage !== "5"
+  ) {
     return { allowed: false, reason: "Calendly already sent in thread" };
   }
 

@@ -2,13 +2,18 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
-import { prisma, UserRole, PlaybookVersionStatus } from "@linkedin-agent/db";
+import { prisma, UserRole } from "@linkedin-agent/db";
 import {
   PlaybookConfigSchema,
   ProfileSummarySchema,
 } from "@linkedin-agent/shared";
-import { DEFAULT_WRESTLER_PLAYBOOK } from "@linkedin-agent/agent";
-import { previewReply, resolveLlmConfig } from "@linkedin-agent/agent";
+import {
+  analyzeConversationInsights,
+  getJimPlaybookByNiche,
+  JIM_WRESTLERS_PLAYBOOK,
+  previewReply,
+  resolveLlmConfig,
+} from "@linkedin-agent/agent";
 import {
   authenticate,
   createSession,
@@ -122,7 +127,7 @@ app.post("/admin/tenants", async (request) => {
     data: {
       campaignId: campaign.id,
       version: 1,
-      status: PlaybookVersionStatus.published,
+      status: "published",
       label: "Initial",
       config: DEFAULT_WRESTLER_PLAYBOOK as object,
       publishedAt: new Date(),
@@ -233,11 +238,107 @@ app.post("/admin/tenants/:tenantId/playbook/publish", async (request) => {
   });
 });
 
+app.post("/admin/tenants/:tenantId/playbook/apply-template", async (request) => {
+  requireAgencyAdmin(requireAuth(request));
+  const { tenantId } = request.params as { tenantId: string };
+  const body = request.body as { niche?: string; campaignId?: string };
+  const niche = body.niche ?? "jim-wrestlers";
+  const template = await prisma.playbookTemplate.findUnique({
+    where: { niche },
+  });
+  const config = template
+    ? PlaybookConfigSchema.parse(template.config)
+    : getJimPlaybookByNiche(niche);
+  if (!config) throw { statusCode: 404, message: "Unknown template niche" };
+
+  const campaign = body.campaignId
+    ? await prisma.campaign.findFirstOrThrow({
+        where: { id: body.campaignId, tenantId },
+      })
+    : await prisma.campaign.findFirstOrThrow({ where: { tenantId } });
+
+  const latest = await prisma.playbookVersion.findFirst({
+    where: { campaignId: campaign.id },
+    orderBy: { version: "desc" },
+  });
+  const draft = await prisma.playbookVersion.findFirst({
+    where: { campaignId: campaign.id, status: "draft" },
+  });
+  if (draft) {
+    return prisma.playbookVersion.update({
+      where: { id: draft.id },
+      data: {
+        config: config as object,
+        label: `From template ${niche}`,
+      },
+    });
+  }
+  return prisma.playbookVersion.create({
+    data: {
+      campaignId: campaign.id,
+      version: (latest?.version ?? 0) + 1,
+      status: "draft",
+      label: `From template ${niche}`,
+      config: config as object,
+    },
+  });
+});
+
+app.post("/admin/tenants/:tenantId/playbook/analyze-conversations", async (request) => {
+  requireAgencyAdmin(requireAuth(request));
+  const { tenantId } = request.params as { tenantId: string };
+  const agency = await getAgencySettings();
+  const prospects = await prisma.prospect.findMany({
+    where: { tenantId },
+    include: { messages: { orderBy: { sentAt: "asc" }, take: 30 } },
+    take: 40,
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const samples = prospects
+    .filter((p) => p.messages.length > 0)
+    .map((p) => ({
+      prospectId: p.id,
+      stage: p.stage,
+      messages: p.messages.map((m) => ({
+        direction: m.direction,
+        text: m.text.slice(0, 500),
+      })),
+      outcome:
+        p.stage === "call_booked"
+          ? ("booked" as const)
+          : p.lastInboundAt
+            ? ("replied" as const)
+            : p.outboundCount > 0
+              ? ("ghosted" as const)
+              : undefined,
+    }));
+
+  const published = await prisma.playbookVersion.findFirst({
+    where: {
+      campaign: { tenantId },
+      status: "published",
+    },
+    orderBy: { version: "desc" },
+  });
+  const config = published
+    ? PlaybookConfigSchema.safeParse(published.config)
+    : null;
+
+  return analyzeConversationInsights(
+    resolveLlmConfig(agency),
+    samples,
+    config?.success
+      ? `Niche: ${config.data.niche ?? "unknown"}. Persona: ${config.data.brand.senderPersona}`
+      : "Jim Harshaw playbooks"
+  );
+});
+
 app.post("/admin/tenants/:tenantId/playbook/preview", async (request) => {
   requireAgencyAdmin(requireAuth(request));
   const body = request.body as { config?: unknown };
   const config = PlaybookConfigSchema.parse(
-    body.config ?? DEFAULT_WRESTLER_PLAYBOOK
+    body.config ?? JIM_WRESTLERS_PLAYBOOK
   );
   const agency = await getAgencySettings();
   const reply = await previewReply(

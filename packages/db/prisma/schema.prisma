@@ -185,6 +185,9 @@ model Prospect {
   nextActionAt      DateTime      @default(now())
   lastInboundAt     DateTime?
   outboundCount     Int           @default(0)
+  followUpCount     Int           @default(0)
+  lastJimStage      String?
+  lastOutboundAt    DateTime?
   calendlyBookedAt  DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

@@ -141,6 +141,21 @@ export const api = {
       method: "POST",
       body: "{}",
     }),
+  applyPlaybookTemplate: (tenantId: string, niche: string) =>
+    fetchApi<unknown>(`/admin/tenants/${tenantId}/playbook/apply-template`, {
+      method: "POST",
+      body: JSON.stringify({ niche }),
+    }),
+  analyzeConversations: (tenantId: string) =>
+    fetchApi<{
+      summary: string;
+      suggestedChanges: string[];
+      strengths: string[];
+      risks: string[];
+    }>(`/admin/tenants/${tenantId}/playbook/analyze-conversations`, {
+      method: "POST",
+      body: "{}",
+    }),
   previewPlaybook: (tenantId: string, config: unknown) =>
     fetchApi<{ messageText: string; nextStage: string; reasoning: string }>(
       `/admin/tenants/${tenantId}/playbook/preview`,

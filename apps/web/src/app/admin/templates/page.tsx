@@ -27,6 +27,7 @@ function TemplatesContent() {
             <tr>
               <th>Name</th>
               <th>Niche</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -35,6 +36,11 @@ function TemplatesContent() {
                 <td>{t.name}</td>
                 <td>
                   <span className="badge">{t.niche}</span>
+                </td>
+                <td>
+                  <Link href={`/admin/tenants/${tenantId}/playbook`}>
+                    Apply in playbook →
+                  </Link>
                 </td>
               </tr>
             ))}
