@@ -176,33 +176,9 @@ export async function clickConnect(
     return;
   }
 
-  const clicked = await p.evaluate(() => {
-    const root = document.querySelector("main") ?? document.body;
-    const buttons = Array.from(
-      root.querySelectorAll<HTMLButtonElement>("button")
-    );
-    for (const btn of buttons) {
-      const text = (btn.innerText ?? "").trim().toLowerCase();
-      const aria = (btn.getAttribute("aria-label") ?? "").toLowerCase();
-      const visible = btn.offsetParent !== null;
-      if (!visible) continue;
-      if (text === "connect") {
-        btn.click();
-        return "text";
-      }
-      if (
-        aria.includes("invite") &&
-        aria.includes("connect") &&
-        !aria.includes("pending")
-      ) {
-        btn.click();
-        return "aria";
-      }
-    }
-    return null;
-  });
-  if (clicked) {
-    await p.waitForTimeout(800);
+  const byText = scope.locator("button").filter({ hasText: /^Connect$/i });
+  if ((await byText.count()) > 0) {
+    await byText.first().click({ timeout: 5000 });
     return;
   }
 
