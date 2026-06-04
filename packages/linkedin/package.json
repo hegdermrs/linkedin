@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@linkedin-agent/shared": "workspace:*",
-    "playwright": "^1.49.1"
+    "playwright": "1.60.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

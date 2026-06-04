@@ -18,7 +18,7 @@ RUN pnpm --filter @linkedin-agent/linkedin build
 RUN pnpm --filter @linkedin-agent/api build
 RUN pnpm --filter @linkedin-agent/worker build
 
-FROM mcr.microsoft.com/playwright:v1.49.1-noble AS runner
+FROM mcr.microsoft.com/playwright:v1.60.0-noble AS runner
 
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
