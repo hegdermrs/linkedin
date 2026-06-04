@@ -70,8 +70,9 @@ function SetupContent() {
         </h2>
         <ol style={{ paddingLeft: "1.25rem", lineHeight: 1.8 }}>
           <li>
-            <Link href={linkedInHref}>Connect LinkedIn</Link> — click the
-            button, sign in when the browser opens (takes about a minute).
+            <Link href={linkedInHref}>Connect LinkedIn</Link> — on Railway,
+            run the login command on your PC and paste the session; locally you
+            can use the browser button.
           </li>
           <li>
             <Link href={playbookHref}>Configure playbook</Link> — messages,

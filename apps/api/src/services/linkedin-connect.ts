@@ -1,5 +1,9 @@
 import { prisma } from "@linkedin-agent/db";
 import { LinkedInClient } from "@linkedin-agent/linkedin";
+import {
+  BROWSER_CONNECT_UNAVAILABLE,
+  isBrowserConnectAvailable,
+} from "./browser-connect-env.js";
 
 export type ConnectJobStatus = "idle" | "opening" | "waiting_login" | "done" | "error";
 
@@ -21,6 +25,18 @@ export function startBrowserConnect(accountId: string): ConnectJob {
   const existing = jobs.get(accountId);
   if (existing?.status === "opening" || existing?.status === "waiting_login") {
     return existing;
+  }
+
+  if (!isBrowserConnectAvailable()) {
+    const job: ConnectJob = {
+      accountId,
+      status: "error",
+      message: BROWSER_CONNECT_UNAVAILABLE,
+      error: BROWSER_CONNECT_UNAVAILABLE,
+      startedAt: Date.now(),
+    };
+    jobs.set(accountId, job);
+    return job;
   }
 
   const job: ConnectJob = {

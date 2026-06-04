@@ -9,7 +9,9 @@ async function main() {
     const encrypted = await client.loginInteractive();
     writeFileSync(outPath, encrypted, "utf8");
     console.log(`Session saved to ${outPath}`);
-    console.log("Paste this value into LinkedInAccount.sessionEncrypted via API or admin.");
+    console.log("\n--- Copy everything below into LinkedIn → paste session ---\n");
+    console.log(encrypted);
+    console.log("\n--- end session ---\n");
   } finally {
     await client.close();
   }

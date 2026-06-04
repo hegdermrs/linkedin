@@ -32,6 +32,7 @@ import {
   importProspectsFromUrls,
 } from "./services/prospect-import.js";
 import { getAgencySettings, getPublishedPlaybook } from "./services/playbook.js";
+import { isBrowserConnectAvailable } from "./services/browser-connect-env.js";
 import {
   getConnectJob,
   startBrowserConnect,
@@ -416,7 +417,7 @@ app.post(
     });
     if (!account) throw { statusCode: 404, message: "Account not found" };
     const job = startBrowserConnect(accountId);
-    return job;
+    return { ...job, browserConnectAvailable: isBrowserConnectAvailable() };
   }
 );
 
@@ -430,7 +431,11 @@ app.get(
       where: { id: accountId },
       select: { status: true, lastError: true },
     });
-    return { job, account };
+    return {
+      job,
+      account,
+      browserConnectAvailable: isBrowserConnectAvailable(),
+    };
   }
 );
 

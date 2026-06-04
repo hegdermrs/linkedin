@@ -182,7 +182,7 @@ export const api = {
       }
     ),
   startConnect: (tenantId: string, accountId: string) =>
-    fetchApi<ConnectJob>(
+    fetchApi<ConnectJob & { browserConnectAvailable?: boolean }>(
       `/admin/tenants/${tenantId}/accounts/${accountId}/connect`,
       { method: "POST", body: "{}" }
     ),
@@ -190,6 +190,7 @@ export const api = {
     fetchApi<{
       job: ConnectJob | null;
       account: { status: string; lastError: string | null } | null;
+      browserConnectAvailable: boolean;
     }>(`/admin/tenants/${tenantId}/accounts/${accountId}/connect`),
   audit: (tenantId: string) =>
     fetchApi<AuditRow[]>(`/admin/tenants/${tenantId}/audit`),
