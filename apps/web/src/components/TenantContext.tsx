@@ -30,11 +30,9 @@ const STORAGE_KEY = "selectedTenantId";
 export function TenantProvider({
   user,
   children,
-  authDisabled = false,
 }: {
   user: SessionUser;
   children: React.ReactNode;
-  authDisabled?: boolean;
 }) {
   const [tenantId, setTenantIdState] = useState<string>("");
   const [tenants, setTenants] = useState<TenantOption[]>([]);
@@ -78,10 +76,7 @@ export function TenantProvider({
             <div className="alert" style={{ marginBottom: "1rem" }}>
               No clients yet.{" "}
               <a href="/admin/tenants">Create a client</a> (name + slug), then
-              return here.{" "}
-              {authDisabled
-                ? "Login is disabled on the api service."
-                : null}
+              return here.
             </div>
           </div>
           {children}

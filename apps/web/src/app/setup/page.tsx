@@ -27,7 +27,7 @@ function SetupContent() {
       const msg = e instanceof Error ? e.message : "Orchestrate failed";
       setResult(
         (prev) =>
-          `${prev} Outreach queue: ${msg.includes("Unauthorized") ? "sign in again, then open Dashboard and resume." : msg}`
+          `${prev} Outreach queue: ${msg}`
       );
     }
   }
@@ -49,7 +49,7 @@ function SetupContent() {
   function formatImportError(e: unknown): string {
     const msg = e instanceof Error ? e.message : "Import failed";
     if (msg.includes("Unauthorized")) {
-      return "Session expired — log out and sign in again, then retry. (Api must have REDIS_URL set on Railway.)";
+      return "API error — redeploy api and web, then retry.";
     }
     return msg;
   }

@@ -1,52 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { api, type SessionUser } from "@/lib/api";
+import { usePathname } from "next/navigation";
+import type { SessionUser } from "@/lib/api";
 import { useTenant } from "./TenantContext";
 
-export function Nav({
-  user,
-  authDisabled = false,
-}: {
-  user: SessionUser;
-  authDisabled?: boolean;
-}) {
+export function Nav({ user }: { user: SessionUser }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { tenantId, tenants } = useTenant();
-
-  async function logout() {
-    if (authDisabled) {
-      router.push("/setup");
-      return;
-    }
-    try {
-      await api.logout();
-    } catch {
-      // Still redirect if session already cleared or API unreachable
-    }
-    router.push("/login");
-  }
 
   const campaignName =
     tenants.find((t) => t.id === tenantId)?.name ?? "Campaign";
 
-  // Setup-first order for agency admin
   const links = [
     { href: "/setup", label: "Setup" },
     {
-      href: `/admin/tenants/${tenantId}/accounts`,
+      href: tenantId
+        ? `/admin/tenants/${tenantId}/accounts`
+        : "/admin/tenants",
       label: "LinkedIn",
     },
     {
-      href: `/admin/tenants/${tenantId}/playbook`,
+      href: tenantId
+        ? `/admin/tenants/${tenantId}/playbook`
+        : "/admin/tenants",
       label: "Playbook",
     },
     { href: "/settings", label: "Settings" },
     { href: "/dashboard", label: "Dashboard" },
     { href: "/prospects", label: "Prospects" },
     { href: "/admin/settings", label: "AI Settings" },
+    { href: "/admin/tenants", label: "Clients" },
   ];
 
   return (
@@ -81,9 +65,6 @@ export function Nav({
       <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
         {user.username}
       </span>
-      <button type="button" className="secondary" onClick={logout}>
-        Log out
-      </button>
     </nav>
   );
 }

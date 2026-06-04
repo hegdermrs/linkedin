@@ -1,8 +1,6 @@
 import { scryptSync, timingSafeEqual, randomBytes } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import { prisma, UserRole } from "@linkedin-agent/db";
-import { getBypassUser, isAuthDisabled } from "./auth-bypass.js";
-import { loadSession, removeSession, saveSession } from "./session-store.js";
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -29,110 +27,42 @@ export interface SessionUser {
   tenantId: string | null;
 }
 
-export async function createSession(user: SessionUser): Promise<string> {
-  const token = randomBytes(32).toString("hex");
-  await saveSession(token, user);
-  return token;
-}
+let cachedAppUser: SessionUser | null = null;
 
-export async function destroySession(token: string): Promise<void> {
-  await removeSession(token);
-}
+/** Open app — no login. Uses first agency admin from DB (seed). */
+export async function getAppUser(): Promise<SessionUser> {
+  if (cachedAppUser) return cachedAppUser;
 
-/** SameSite=None is required for cross-origin API calls; Lax works when web proxies /auth to api. */
-export function sessionCookieOptions(request: FastifyRequest): {
-  path: string;
-  httpOnly: boolean;
-  secure: boolean;
-  sameSite: "lax" | "none";
-  maxAge: number;
-} {
-  const isProd = process.env.NODE_ENV === "production";
-  const secure = isProd;
-  const webUrl = process.env.WEB_URL?.replace(/\/$/, "");
-  const origin =
-    typeof request.headers.origin === "string"
-      ? request.headers.origin.replace(/\/$/, "")
-      : undefined;
-  const forwardedHost = request.headers["x-forwarded-host"];
-  const webHost = webUrl
-    ? (() => {
-        try {
-          return new URL(webUrl).host;
-        } catch {
-          return null;
-        }
-      })()
-    : null;
-  const proxied =
-    typeof forwardedHost === "string" &&
-    webHost &&
-    forwardedHost.split(",")[0]?.trim() === webHost;
-  const sameSite =
-    proxied || (origin && webUrl && origin === webUrl)
-      ? "lax"
-      : isProd
-        ? "none"
-        : "lax";
-  return {
-    path: "/",
-    httpOnly: true,
-    secure,
-    sameSite,
-    maxAge: 60 * 60 * 24 * 7,
-  };
-}
+  const admin = await prisma.user.findFirst({
+    where: { role: UserRole.agency_admin },
+    orderBy: { createdAt: "asc" },
+  });
 
-export function clearSessionCookieOptions(
-  request: FastifyRequest
-): Pick<
-  ReturnType<typeof sessionCookieOptions>,
-  "path" | "secure" | "sameSite"
-> {
-  const { path, secure, sameSite } = sessionCookieOptions(request);
-  return { path, secure, sameSite };
-}
-
-export async function authenticate(
-  login: string,
-  password: string
-): Promise<SessionUser | null> {
-  const id = login.trim();
-  if (!id) return null;
-
-  const user = id.includes("@")
-    ? await prisma.user.findFirst({ where: { email: id } })
-    : await prisma.user.findFirst({ where: { username: id } });
-
-  if (!user?.username || !verifyPassword(password, user.passwordHash)) {
-    return null;
+  if (admin) {
+    cachedAppUser = {
+      id: admin.id,
+      username: admin.username ?? process.env.AGENCY_ADMIN_USERNAME ?? "admin",
+      email: admin.email,
+      role: admin.role,
+      tenantId: admin.tenantId,
+    };
+    return cachedAppUser;
   }
-  return {
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role,
-    tenantId: user.tenantId,
+
+  cachedAppUser = {
+    id: "app-admin",
+    username: process.env.AGENCY_ADMIN_USERNAME ?? "admin",
+    email: null,
+    role: UserRole.agency_admin,
+    tenantId: null,
   };
+  return cachedAppUser;
 }
 
 export async function requireAuth(
   _request: FastifyRequest
 ): Promise<SessionUser> {
-  if (isAuthDisabled()) {
-    return getBypassUser();
-  }
-
-  const token = _request.cookies.session;
-  const user = await loadSession(token);
-  if (!user) {
-    throw {
-      statusCode: 401,
-      message:
-        "Unauthorized — sign in again (sessions are stored in Redis after api restarts).",
-    };
-  }
-  return user;
+  return getAppUser();
 }
 
 export function requireAgencyAdmin(user: SessionUser): void {
@@ -168,7 +98,6 @@ export async function resolveTenantId(
   return user.tenantId;
 }
 
-/** Like resolveTenantId but returns null when auth is off and no tenant exists yet. */
 export async function resolveEffectiveTenantId(
   user: SessionUser,
   queryTenantId?: string
@@ -176,7 +105,7 @@ export async function resolveEffectiveTenantId(
   try {
     return await resolveTenantId(user, queryTenantId);
   } catch (err) {
-    if (isAuthDisabled()) return null;
+    if (user.role === UserRole.agency_admin) return null;
     throw err;
   }
 }

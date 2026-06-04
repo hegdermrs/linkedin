@@ -70,23 +70,11 @@ async function fetchApi<T>(
 }
 
 export const api = {
-  login: (username: string, password: string) =>
-    fetchApi<{ user: SessionUser; authDisabled?: boolean }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ username, password }),
-    }),
-  logout: () =>
-    fetchApi<{ ok: boolean }>("/auth/logout", {
-      method: "POST",
-      body: "{}",
-    }),
-  authStatus: () => fetchApi<{ authDisabled: boolean }>("/auth/status"),
   me: () =>
     fetchApi<{
       user: SessionUser;
       effectiveTenantId: string;
       tenants?: { id: string; name: string; slug: string }[];
-      authDisabled?: boolean;
     }>("/auth/me"),
   metrics: (tenantId?: string) =>
     fetchApi<MetricsResponse>(

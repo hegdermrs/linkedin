@@ -20,18 +20,12 @@ import {
   canDecryptSession,
   sessionKeyFingerprint,
 } from "@linkedin-agent/linkedin";
-import { isAuthDisabled, getBypassUser } from "./auth-bypass.js";
 import {
-  authenticate,
-  createSession,
-  destroySession,
   requireAuth,
   requireAgencyAdmin,
   resolveTenantId,
   resolveEffectiveTenantId,
   hashPassword,
-  sessionCookieOptions,
-  clearSessionCookieOptions,
 } from "./auth.js";
 import { enqueueJob, enqueueOrchestrateAll } from "./queue.js";
 import {
@@ -86,47 +80,7 @@ app.setErrorHandler((error, _request, reply) => {
   reply.status(statusCode).send({ error: message });
 });
 
-app.get("/health", async () => ({
-  ok: true,
-  authDisabled: isAuthDisabled(),
-}));
-
-app.get("/auth/status", async () => ({
-  authDisabled: isAuthDisabled(),
-}));
-
-app.post("/auth/login", async (request, reply) => {
-  if (isAuthDisabled()) {
-    const user = await getBypassUser();
-    return { user, authDisabled: true };
-  }
-  const body = request.body as {
-    username?: string;
-    email?: string;
-    password?: string;
-  };
-  const loginId = (body.username ?? body.email ?? "").trim();
-  const user = await authenticate(loginId, body.password ?? "");
-  if (!user) return reply.status(401).send({ error: "Invalid credentials" });
-  const token = await createSession(user);
-  reply.setCookie("session", token, sessionCookieOptions(request));
-  return {
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId,
-    },
-  };
-});
-
-app.post("/auth/logout", async (request, reply) => {
-  const token = request.cookies.session;
-  if (token) await destroySession(token);
-  reply.clearCookie("session", clearSessionCookieOptions(request));
-  return { ok: true };
-});
+app.get("/health", async () => ({ ok: true }));
 
 app.get("/auth/me", async (request) => {
   const user = await requireAuth(request);
@@ -142,7 +96,6 @@ app.get("/auth/me", async (request) => {
     user,
     effectiveTenantId: effectiveTenantId ?? "",
     tenants,
-    authDisabled: isAuthDisabled(),
   };
 });
 

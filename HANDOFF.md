@@ -114,9 +114,7 @@ LinkedIn session capture:
 npx pnpm@9.15.0 --filter @linkedin-agent/linkedin login
 ```
 
-**Login:** Optional — set `DISABLE_AUTH=true` on **api** to bypass login (uses first agency admin from DB). `env/railway-api.raw.env` includes this for Railway. Re-enable before a public deploy.
-
-**Credentials (when auth on):** `admin` / `changeme` (`AGENCY_ADMIN_USERNAME` / `AGENCY_ADMIN_PASSWORD` on api; seed on deploy).
+**Login:** Removed for now — api uses first agency admin from DB (`getAppUser`). No sign-in page; open `/setup` directly. Re-add auth before a public deploy.
 
 **Typecheck only:** `npx pnpm@9.15.0 typecheck`
 
@@ -128,6 +126,7 @@ npx pnpm@9.15.0 --filter @linkedin-agent/linkedin login
 |------|-------|---------|
 | 2026-05-27 | handoff subagent | Created HANDOFF.md + `.cursor/rules/handoff.mdc`; scanned repo; confirmed web typecheck OK; root build fails on `packages/shared` `process` types |
 | 2026-05-28 | auth bypass | `DISABLE_AUTH=true` on api: `auth-bypass.ts`, `requireAuth` bypass, `/auth/me` + banner in web; home → `/setup`; `env/railway-api.raw.env` |
+| 2026-05-28 | no login | Removed session login; `getAppUser` always; `/login` → `/setup`; dropped `/auth/login` routes |
 
 ---
 
