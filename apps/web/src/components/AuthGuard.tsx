@@ -36,8 +36,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       <div className="main">
         <div className="alert">{error}</div>
         <p style={{ color: "var(--muted)", marginTop: "1rem" }}>
-          On Railway: set <code>API_URL</code> on the <strong>web</strong>{" "}
-          service and ensure <strong>api</strong> is Online, then redeploy web.
+          Railway <strong>web</strong>: set <code>API_URL</code> via Reference to
+          your api service (private domain + PORT). Optional{" "}
+          <code>API_FALLBACK_URL</code> = api public https URL. Ensure{" "}
+          <strong>api</strong> is Online, then redeploy <strong>web</strong>.
         </p>
       </div>
     );

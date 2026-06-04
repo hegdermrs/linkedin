@@ -32,14 +32,20 @@ function buildHeaders(options: RequestInit): HeadersInit {
   return headers;
 }
 
+function resolveFetchUrl(path: string): string {
+  if (path.startsWith("/api/") && !path.startsWith("/api/proxy")) {
+    return path;
+  }
+  return `${getApiBase()}${path}`;
+}
+
 async function fetchApi<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const apiBase = getApiBase();
   let res: Response;
   try {
-    res = await fetch(`${apiBase}${path}`, {
+    res = await fetch(resolveFetchUrl(path), {
       ...options,
       credentials: "include",
       headers: buildHeaders(options),
@@ -47,10 +53,18 @@ async function fetchApi<T>(
   } catch (e) {
     const hint =
       "Cannot reach the API. On Railway: set API_URL (and optional API_FALLBACK_URL) on the **web** service, ensure **api** is Online, redeploy **web**, then try again.";
-    if (e instanceof TypeError && e.message === "Failed to fetch") {
-      throw new Error(hint);
+    const msg = e instanceof Error ? e.message : "";
+    if (
+      e instanceof TypeError &&
+      (msg === "Failed to fetch" || msg.includes("Decoding failed"))
+    ) {
+      throw new Error(
+        msg.includes("Decoding failed")
+          ? `API response could not be read (${msg}). Redeploy **web** after the latest fix, and set API_FALLBACK_URL to your api public https URL.`
+          : hint
+      );
     }
-    throw new Error(e instanceof Error ? e.message : hint);
+    throw new Error(msg || hint);
   }
   const text = await res.text();
   if (!res.ok) {
@@ -75,7 +89,7 @@ export const api = {
       user: SessionUser;
       effectiveTenantId: string;
       tenants?: { id: string; name: string; slug: string }[];
-    }>("/auth/me"),
+    }>(typeof window !== "undefined" ? "/api/session" : "/auth/me"),
   metrics: (tenantId?: string) =>
     fetchApi<MetricsResponse>(
       `/dashboard/metrics${tenantId ? `?tenantId=${tenantId}` : ""}`
