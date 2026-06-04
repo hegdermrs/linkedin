@@ -166,6 +166,13 @@ export async function processAnalyzeProfile(
   }
 }
 
+async function clearLinkedInAccountError(linkedInAccountId: string): Promise<void> {
+  await prisma.linkedInAccount.update({
+    where: { id: linkedInAccountId },
+    data: { lastError: null, status: "active" },
+  });
+}
+
 export async function processSendConnect(
   prospectId: string,
   linkedInAccountId: string
@@ -178,6 +185,51 @@ export async function processSendConnect(
   const agency = await prisma.agencySettings.findUniqueOrThrow({
     where: { id: "singleton" },
   });
+
+  const { LinkedInClient } = await import("@linkedin-agent/linkedin");
+  const account = await prisma.linkedInAccount.findUniqueOrThrow({
+    where: { id: linkedInAccountId },
+  });
+  const client = new LinkedInClient(account.sessionEncrypted);
+
+  try {
+    const rate = await checkRateLimit(linkedInAccountId, playbook, "connection");
+    if (!rate.allowed) return;
+
+    await client.init();
+    const status = await client.getConnectionStatus(prospect.linkedinUrl);
+
+    if (status === "connected") {
+      await prisma.prospect.update({
+        where: { id: prospectId },
+        data: {
+          stage: ProspectStage.connected,
+          nextActionAt: new Date(),
+        },
+      });
+      await clearLinkedInAccountError(linkedInAccountId);
+      await audit(prospect.tenantId, "already_connected", prospectId, {});
+      return;
+    }
+
+    if (status === "pending") {
+      await prisma.prospect.update({
+        where: { id: prospectId },
+        data: {
+          stage: ProspectStage.connect_sent,
+          nextActionAt: hoursFromNow(24),
+        },
+      });
+      await clearLinkedInAccountError(linkedInAccountId);
+      await audit(prospect.tenantId, "connect_pending", prospectId, {});
+      return;
+    }
+  } catch (e) {
+    await handleLinkedInError(linkedInAccountId, e);
+    await client.close();
+    return;
+  }
+
   const summary = prospect.profileSummary
     ? ProfileSummarySchema.safeParse(prospect.profileSummary).data
     : null;
@@ -210,17 +262,7 @@ export async function processSendConnect(
   });
   if (existing) return;
 
-  const { LinkedInClient } = await import("@linkedin-agent/linkedin");
-  const account = await prisma.linkedInAccount.findUniqueOrThrow({
-    where: { id: linkedInAccountId },
-  });
-  const client = new LinkedInClient(account.sessionEncrypted);
-
   try {
-    const rate = await checkRateLimit(linkedInAccountId, playbook, "connection");
-    if (!rate.allowed) return;
-
-    await client.init();
     await client.sendConnectionRequest(prospect.linkedinUrl, reply.messageText);
 
     await prisma.$transaction([
@@ -245,8 +287,32 @@ export async function processSendConnect(
 
     await incrementMetric(prospect.tenantId, prospect.campaignId, "connectsSent");
     await recordRateLimitAction(linkedInAccountId, "connection");
+    await clearLinkedInAccountError(linkedInAccountId);
     await audit(prospect.tenantId, "connect_sent", prospectId, { reply });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === "ALREADY_CONNECTED") {
+      await prisma.prospect.update({
+        where: { id: prospectId },
+        data: {
+          stage: ProspectStage.connected,
+          nextActionAt: new Date(),
+        },
+      });
+      await clearLinkedInAccountError(linkedInAccountId);
+      return;
+    }
+    if (msg === "CONNECT_ALREADY_PENDING") {
+      await prisma.prospect.update({
+        where: { id: prospectId },
+        data: {
+          stage: ProspectStage.connect_sent,
+          nextActionAt: hoursFromNow(24),
+        },
+      });
+      await clearLinkedInAccountError(linkedInAccountId);
+      return;
+    }
     await handleLinkedInError(linkedInAccountId, e);
   } finally {
     await client.close();
@@ -541,6 +607,9 @@ async function handleLinkedInError(
   error: unknown
 ): Promise<void> {
   const msg = error instanceof Error ? error.message : String(error);
+  if (msg === "ALREADY_CONNECTED" || msg === "CONNECT_ALREADY_PENDING") {
+    return;
+  }
   const sessionKeyMismatch =
     msg.includes("authenticate") ||
     msg.includes("Unsupported state") ||

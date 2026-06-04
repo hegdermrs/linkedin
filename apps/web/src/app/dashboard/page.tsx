@@ -50,6 +50,11 @@ function DashboardContent() {
       </p>
       {error && <div className="alert">{error}</div>}
 
+      {metrics?.lastError && (
+        <div className="alert" style={{ marginBottom: "1rem" }}>
+          Last automation error: {metrics.lastError}
+        </div>
+      )}
       {metrics && !metrics.linkedInConnected && (
         <div className="alert">
           LinkedIn is not connected yet — complete step 1 on the{" "}

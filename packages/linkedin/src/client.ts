@@ -173,6 +173,42 @@ export class LinkedInClient {
     };
   }
 
+  /** Detect relationship from the profile action bar (LinkedIn changes labels often). */
+  private async detectProfileRelationship(
+    p: Page
+  ): Promise<"none" | "pending" | "connected"> {
+    await p.waitForTimeout(1500);
+
+    const pending = p.locator(
+      'button[aria-label*="Pending" i], [role="button"][aria-label*="Pending" i]'
+    );
+    if ((await pending.count()) > 0) return "pending";
+    if ((await p.getByRole("button", { name: /Pending/i }).count()) > 0) {
+      return "pending";
+    }
+
+    const message = p.locator(
+      'button[aria-label*="Message" i], button[aria-label*="Send a message" i], a[aria-label*="Message" i]'
+    );
+    if ((await message.count()) > 0) return "connected";
+    if ((await p.getByRole("button", { name: /^(Message|Send a message)$/i }).count()) > 0) {
+      return "connected";
+    }
+
+    const connect = p.locator(
+      'button[aria-label*="Connect" i], button[aria-label*="Invite" i], [role="button"][aria-label*="Connect" i]'
+    );
+    if ((await connect.count()) > 0) return "none";
+    if ((await p.getByRole("button", { name: /^(Connect|Invite)$/i }).count()) > 0) {
+      return "none";
+    }
+
+    const firstDegree = p.getByText(/1st\s*(degree|connection)/i);
+    if ((await firstDegree.count()) > 0) return "connected";
+
+    return "none";
+  }
+
   async getConnectionStatus(
     profileUrl: string
   ): Promise<"none" | "pending" | "connected"> {
@@ -181,17 +217,7 @@ export class LinkedInClient {
       waitUntil: "domcontentloaded",
     });
     await humanDelay(2, 4);
-
-    const pending = p.getByRole("button", { name: /Pending/i });
-    if ((await pending.count()) > 0) return "pending";
-
-    const messageBtn = p.getByRole("button", { name: /^Message$/i });
-    if ((await messageBtn.count()) > 0) return "connected";
-
-    const connect = p.getByRole("button", { name: /^Connect$/i });
-    if ((await connect.count()) > 0) return "none";
-
-    return "none";
+    return this.detectProfileRelationship(p);
   }
 
   async sendConnectionRequest(
@@ -204,11 +230,30 @@ export class LinkedInClient {
     });
     await humanDelay(2, 5);
 
-    const connectBtn = p.getByRole("button", { name: /^Connect$/i }).first();
-    if ((await connectBtn.count()) === 0) {
+    const status = await this.detectProfileRelationship(p);
+    if (status === "connected") {
+      throw new Error("ALREADY_CONNECTED");
+    }
+    if (status === "pending") {
+      throw new Error("CONNECT_ALREADY_PENDING");
+    }
+
+    const connectBtn = p
+      .locator(
+        'button[aria-label*="Connect" i], button[aria-label*="Invite" i], [role="button"][aria-label*="Connect" i]'
+      )
+      .first();
+    const connectRole = p.getByRole("button", { name: /^(Connect|Invite)$/i }).first();
+    const btn =
+      (await connectBtn.count()) > 0
+        ? connectBtn
+        : (await connectRole.count()) > 0
+          ? connectRole
+          : null;
+    if (!btn) {
       throw new Error("Connect button not found");
     }
-    await connectBtn.click();
+    await btn.click();
     await p.waitForTimeout(1500);
 
     if (note) {

@@ -148,7 +148,17 @@ function AccountsContent() {
           )}
           {(connectError || primary.lastError) && (
             <div className="alert" style={{ marginBottom: "1rem" }}>
+              <strong>Last worker error:</strong>{" "}
               {connectError || primary.lastError}
+              {(connectError || primary.lastError || "").includes(
+                "Connect button not found"
+              ) && (
+                <p style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
+                  This usually means the prospect is already a 1st-degree
+                  connection — redeploy worker and run orchestrate; the pipeline
+                  will skip connect and send the intro DM.
+                </p>
+              )}
             </div>
           )}
 
