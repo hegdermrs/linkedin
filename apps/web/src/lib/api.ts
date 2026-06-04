@@ -110,6 +110,14 @@ export const api = {
       { method: "POST", body: form }
     );
   },
+  importUrls: (campaignId: string, urls: string) =>
+    fetchApi<{ imported: number; skipped: number }>(
+      `/campaigns/${campaignId}/import-urls`,
+      {
+        method: "POST",
+        body: JSON.stringify({ urls }),
+      }
+    ),
   orchestrate: (tenantId?: string) =>
     fetchApi<{ queued: boolean }>("/orchestrate", {
       method: "POST",

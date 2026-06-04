@@ -19,7 +19,10 @@ import {
   hashPassword,
 } from "./auth.js";
 import { enqueueJob, enqueueOrchestrateAll } from "./queue.js";
-import { importProspectsCsv } from "./services/csv-import.js";
+import {
+  importProspectsCsv,
+  importProspectsFromUrls,
+} from "./services/prospect-import.js";
 import { getAgencySettings, getPublishedPlaybook } from "./services/playbook.js";
 import {
   getConnectJob,
@@ -433,6 +436,41 @@ app.post("/campaigns/:campaignId/import", async (request) => {
   );
   await enqueueJob("orchestrate_tenant", { tenantId: campaign.tenantId });
   return result;
+});
+
+app.post("/campaigns/:campaignId/import-urls", async (request) => {
+  const user = requireAuth(request);
+  const { campaignId } = request.params as { campaignId: string };
+  const body = request.body as { urls?: string; text?: string };
+  const text = (body.urls ?? body.text ?? "").trim();
+  if (!text) throw { statusCode: 400, message: "urls or text is required" };
+
+  const campaign = await prisma.campaign.findUniqueOrThrow({
+    where: { id: campaignId },
+  });
+  if (
+    user.role !== UserRole.agency_admin &&
+    campaign.tenantId !== user.tenantId
+  ) {
+    throw { statusCode: 403, message: "Forbidden" };
+  }
+
+  const account = await prisma.linkedInAccount.findFirst({
+    where: { tenantId: campaign.tenantId },
+  });
+  try {
+    const result = await importProspectsFromUrls(
+      campaign.tenantId,
+      campaignId,
+      account?.id ?? null,
+      text
+    );
+    await enqueueJob("orchestrate_tenant", { tenantId: campaign.tenantId });
+    return result;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Import failed";
+    throw { statusCode: 400, message };
+  }
 });
 
 app.get("/campaigns", async (request) => {

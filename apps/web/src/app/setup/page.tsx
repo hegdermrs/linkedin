@@ -10,23 +10,46 @@ function SetupContent() {
   const { tenantId } = useTenant();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [file, setFile] = useState<File | null>(null);
+  const [urlText, setUrlText] = useState("");
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     api.campaigns(tenantId).then(setCampaigns).catch(console.error);
   }, [tenantId]);
 
+  async function afterImport(r: { imported: number; skipped: number }) {
+    setResult(`Imported ${r.imported} prospects (${r.skipped} skipped).`);
+    await api.orchestrate(tenantId);
+  }
+
   async function importCsv() {
     if (!file || !campaigns[0]) return;
     setError("");
     setResult("");
+    setImporting(true);
     try {
-      const r = await api.importCsv(campaigns[0].id, file);
-      setResult(`Imported ${r.imported} prospects (${r.skipped} skipped).`);
-      await api.orchestrate(tenantId);
+      await afterImport(await api.importCsv(campaigns[0].id, file));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function importUrls() {
+    if (!urlText.trim() || !campaigns[0]) return;
+    setError("");
+    setResult("");
+    setImporting(true);
+    try {
+      await afterImport(await api.importUrls(campaigns[0].id, urlText));
+      setUrlText("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -59,8 +82,8 @@ function SetupContent() {
             business hours timezone.
           </li>
           <li>
-            <strong>Upload prospects</strong> (below) — Sales Navigator CSV
-            with LinkedIn profile URLs.
+            <strong>Add prospects</strong> (below) — paste LinkedIn URLs or
+            upload a CSV.
           </li>
           <li>
             <Link href="/dashboard">Start on dashboard</Link> — review metrics
@@ -69,12 +92,40 @@ function SetupContent() {
         </ol>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: "1.5rem" }}>
         <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>
-          Step 4 — Upload prospect list
+          Step 4a — Paste LinkedIn profile URLs
         </h2>
         {error && <div className="alert">{error}</div>}
         {result && <div className="alert success">{result}</div>}
+        <div className="form-group">
+          <label>One URL per line, or separated by commas</label>
+          <textarea
+            rows={8}
+            placeholder={
+              "https://www.linkedin.com/in/jane-doe\nhttps://www.linkedin.com/in/john-smith\n\nor: url1, url2, url3"
+            }
+            value={urlText}
+            onChange={(e) => setUrlText(e.target.value)}
+            style={{ fontFamily: "monospace", fontSize: "0.9rem" }}
+          />
+          <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.35rem" }}>
+            Each entry must be a LinkedIn <code>/in/...</code> profile link.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={importUrls}
+          disabled={!urlText.trim() || importing || !campaigns[0]}
+        >
+          {importing ? "Importing…" : "Add URLs and start outreach"}
+        </button>
+      </div>
+
+      <div className="card">
+        <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>
+          Step 4b — Or upload CSV
+        </h2>
         <div className="form-group">
           <label>CSV file (must include a LinkedIn profile URL column)</label>
           <input
@@ -83,8 +134,12 @@ function SetupContent() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
         </div>
-        <button type="button" onClick={importCsv} disabled={!file}>
-          Upload and start outreach
+        <button
+          type="button"
+          onClick={importCsv}
+          disabled={!file || importing || !campaigns[0]}
+        >
+          {importing ? "Importing…" : "Upload CSV and start outreach"}
         </button>
       </div>
     </main>
