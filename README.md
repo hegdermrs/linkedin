@@ -30,7 +30,7 @@ Multi-tenant platform for automated LinkedIn outreach: Playwright drives each co
    npx pnpm@9.15.0 start
    ```
 
-3. Open **http://localhost:3000** — login `admin@example.com` / `changeme`
+3. Open **http://localhost:3000** — login `admin` / `changeme`
 
 Press **Ctrl+C** in that terminal to stop the app. Run `npx pnpm@9.15.0 stop` to stop Docker.
 
@@ -70,9 +70,9 @@ pnpm dev:all   # API + worker + web in one terminal
 
 | Role | Email | Password |
 |------|-------|----------|
-| Agency admin | admin@example.com | changeme |
+| Agency admin | admin | changeme |
 
-Configure via `AGENCY_ADMIN_EMAIL` / `AGENCY_ADMIN_PASSWORD` in `.env`. The seed also creates a sample client tenant (`demo-coach`) for testing — manage it from the admin UI; no separate coach login.
+Configure via `AGENCY_ADMIN_USERNAME` / `AGENCY_ADMIN_PASSWORD` in `.env`. Optional `AGENCY_ADMIN_EMAIL` is stored on the user record only. The seed creates the Jim Harshaw client tenant — manage it from the admin UI.
 
 ## LinkedIn connection
 

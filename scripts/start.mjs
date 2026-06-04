@@ -90,7 +90,7 @@ async function main() {
 
   console.log("\n▶ Starting app (API :3001, Web :3000, Worker)…");
   console.log("  Open http://localhost:3000");
-  console.log("  Login: admin@example.com / changeme");
+  console.log("  Login: admin / changeme");
   console.log("  Press Ctrl+C to stop all services.\n");
 
   await runCommand(`${PNPM} dev:all`);

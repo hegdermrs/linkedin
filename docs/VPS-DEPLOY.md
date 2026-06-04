@@ -65,7 +65,7 @@ Caddy obtains free SSL certificates automatically.
 docker compose -f docker-compose.prod.yml exec api pnpm --filter @linkedin-agent/db seed
 ```
 
-Log in with `AGENCY_ADMIN_EMAIL` / `AGENCY_ADMIN_PASSWORD` from `.env`.
+Log in with `AGENCY_ADMIN_USERNAME` / `AGENCY_ADMIN_PASSWORD` from `.env`.
 
 ## 5. LinkedIn on a VPS (important)
 

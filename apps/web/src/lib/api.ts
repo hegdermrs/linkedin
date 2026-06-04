@@ -8,7 +8,8 @@ function getApiBase(): string {
 
 export interface SessionUser {
   id: string;
-  email: string;
+  username: string;
+  email: string | null;
   role: "agency_admin" | "client_owner" | "client_viewer";
   tenantId: string | null;
 }
@@ -64,10 +65,10 @@ async function fetchApi<T>(
 }
 
 export const api = {
-  login: (email: string, password: string) =>
+  login: (username: string, password: string) =>
     fetchApi<{ user: SessionUser }>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     }),
   logout: () =>
     fetchApi<{ ok: boolean }>("/auth/logout", {

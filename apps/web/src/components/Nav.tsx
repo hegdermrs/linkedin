@@ -69,7 +69,7 @@ export function Nav({ user }: { user: SessionUser }) {
         </Link>
       ))}
       <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
-        {user.email}
+        {user.username}
       </span>
       <button type="button" className="secondary" onClick={logout}>
         Log out

@@ -63,8 +63,13 @@ app.setErrorHandler((error, _request, reply) => {
 app.get("/health", async () => ({ ok: true }));
 
 app.post("/auth/login", async (request, reply) => {
-  const body = request.body as { email?: string; password?: string };
-  const user = await authenticate(body.email ?? "", body.password ?? "");
+  const body = request.body as {
+    username?: string;
+    email?: string;
+    password?: string;
+  };
+  const loginId = (body.username ?? body.email ?? "").trim();
+  const user = await authenticate(loginId, body.password ?? "");
   if (!user) return reply.status(401).send({ error: "Invalid credentials" });
   const token = createSession(user);
   const isProd = process.env.NODE_ENV === "production";
@@ -75,7 +80,15 @@ app.post("/auth/login", async (request, reply) => {
     sameSite: isProd ? "none" : "lax",
     maxAge: 60 * 60 * 24 * 7,
   });
-  return { user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId } };
+  return {
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+    },
+  };
 });
 
 app.post("/auth/logout", async (request, reply) => {

@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@example.com");
+  const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("changeme");
   const [error, setError] = useState("");
 
@@ -14,13 +14,13 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     try {
-      const { user } = await api.login(email, password);
+      await api.login(username, password);
       router.push("/setup");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";
       setError(
         msg === "Invalid credentials"
-          ? "Invalid credentials — use AGENCY_ADMIN_EMAIL and AGENCY_ADMIN_PASSWORD from Railway (api service), then run seed in api Shell."
+          ? "Invalid credentials — use AGENCY_ADMIN_USERNAME and AGENCY_ADMIN_PASSWORD from Railway (api service), then run seed in api Shell."
           : msg
       );
     }
@@ -35,11 +35,12 @@ export default function LoginPage() {
       {error && <div className="alert">{error}</div>}
       <form onSubmit={submit}>
         <div className="form-group">
-          <label>Email</label>
+          <label>Username</label>
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
         </div>
@@ -47,6 +48,7 @@ export default function LoginPage() {
           <label>Password</label>
           <input
             type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -57,7 +59,7 @@ export default function LoginPage() {
         </button>
       </form>
       <p style={{ marginTop: "1rem", fontSize: "0.8rem", color: "var(--muted)" }}>
-        Default: admin@example.com / changeme
+        Default: admin / changeme (after seed)
       </p>
     </div>
   );

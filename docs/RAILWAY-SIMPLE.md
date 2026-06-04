@@ -110,8 +110,9 @@ Set these on **API** and **Worker** (and shared where noted):
 | `DATABASE_URL` | Reference → Postgres |
 | `REDIS_URL` | Reference → Redis |
 | `SESSION_ENCRYPTION_KEY` | Any long random string (32+ characters) |
-| `AGENCY_ADMIN_EMAIL` | Your email |
+| `AGENCY_ADMIN_USERNAME` | Login username (e.g. `admin`) |
 | `AGENCY_ADMIN_PASSWORD` | A strong password you choose |
+| `AGENCY_ADMIN_EMAIL` | Optional (not used for login) |
 | `DEEPSEEK_API_KEY` | From [DeepSeek](https://platform.deepseek.com) |
 | `DEFAULT_LLM_PROVIDER` | `deepseek` |
 | `DEFAULT_LLM_MODEL` | `deepseek-chat` |
@@ -131,9 +132,9 @@ Redeploy **web** after you set `NEXT_PUBLIC_API_URL` (it is baked in at build ti
 ## Step 5 — First login
 
 1. Open your **website** URL.
-2. Log in with `AGENCY_ADMIN_EMAIL` / `AGENCY_ADMIN_PASSWORD`.
+2. Log in with `AGENCY_ADMIN_USERNAME` / `AGENCY_ADMIN_PASSWORD`.
 
-Login uses `AGENCY_ADMIN_EMAIL` / `AGENCY_ADMIN_PASSWORD` on the **api** service. Seed runs automatically when **api** starts.
+Login uses `AGENCY_ADMIN_USERNAME` / `AGENCY_ADMIN_PASSWORD` on the **api** service. Seed runs automatically when **api** starts.
 
 Manual seed (if needed): click **api** (open full page) → **Shell** tab, or right-click **api** → **Copy SSH command**, then run:
 

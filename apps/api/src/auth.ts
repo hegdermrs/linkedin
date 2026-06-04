@@ -21,7 +21,8 @@ export function verifyPassword(password: string, stored: string): boolean {
 
 export interface SessionUser {
   id: string;
-  email: string;
+  username: string;
+  email: string | null;
   role: UserRole;
   tenantId: string | null;
 }
@@ -44,13 +45,22 @@ export function destroySession(token: string): void {
 }
 
 export async function authenticate(
-  email: string,
+  login: string,
   password: string
 ): Promise<SessionUser | null> {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !verifyPassword(password, user.passwordHash)) return null;
+  const id = login.trim();
+  if (!id) return null;
+
+  const user = id.includes("@")
+    ? await prisma.user.findFirst({ where: { email: id } })
+    : await prisma.user.findFirst({ where: { username: id } });
+
+  if (!user?.username || !verifyPassword(password, user.passwordHash)) {
+    return null;
+  }
   return {
     id: user.id,
+    username: user.username,
     email: user.email,
     role: user.role,
     tenantId: user.tenantId,

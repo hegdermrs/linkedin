@@ -88,7 +88,7 @@ Previous session failed on **`PlaybookEditor`** props: `onSave` / `onPublish` ex
 2. Fix `packages/shared` build (`@types/node` or refactor `redis.ts`).
 3. Run `Set-Location "D:\Work\APPS\Likedin"; npx pnpm@9.15.0 build` until all 7 workspace packages pass.
 4. `docker compose up -d` → `npx pnpm@9.15.0 db:push` → `npx pnpm@9.15.0 db:seed`.
-5. Start `dev:api`, `dev:worker`, `dev:web`; smoke-test login (`admin@example.com` / `changeme`).
+5. Start `dev:api`, `dev:worker`, `dev:web`; smoke-test login (`admin` / `changeme`).
 6. Run `npx pnpm@9.15.0 --filter @linkedin-agent/linkedin login`; paste session in Admin → Clients → LinkedIn.
 7. Import sample CSV on client Setup; trigger orchestrate; watch worker logs for Playwright/LLM errors.
 8. Update this HANDOFF with build/runtime results and any selector or API fixes.
@@ -114,7 +114,7 @@ LinkedIn session capture:
 npx pnpm@9.15.0 --filter @linkedin-agent/linkedin login
 ```
 
-**Login:** `admin@example.com` / `changeme` (agency admin only; sample tenant `demo-coach` has no separate login).
+**Login:** `admin` / `changeme` (set `AGENCY_ADMIN_USERNAME` / `AGENCY_ADMIN_PASSWORD` on api; seed on deploy).
 
 **Typecheck only:** `npx pnpm@9.15.0 typecheck`
 

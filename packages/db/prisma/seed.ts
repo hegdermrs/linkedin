@@ -28,22 +28,40 @@ async function main() {
     },
   });
 
-  const adminEmail = process.env.AGENCY_ADMIN_EMAIL ?? "admin@example.com";
+  const adminUsername = process.env.AGENCY_ADMIN_USERNAME ?? "admin";
   const adminPassword = process.env.AGENCY_ADMIN_PASSWORD ?? "changeme";
+  const adminEmail = process.env.AGENCY_ADMIN_EMAIL ?? null;
 
-  await prisma.user.upsert({
-    where: { email: adminEmail },
-    create: {
-      email: adminEmail,
-      passwordHash: hashPassword(adminPassword),
-      name: "Agency Admin",
-      role: UserRole.agency_admin,
-    },
-    update: {
-      passwordHash: hashPassword(adminPassword),
-      role: UserRole.agency_admin,
+  const existingAdmin = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { username: adminUsername },
+        ...(adminEmail ? [{ email: adminEmail }] : []),
+      ],
     },
   });
+
+  if (existingAdmin) {
+    await prisma.user.update({
+      where: { id: existingAdmin.id },
+      data: {
+        username: adminUsername,
+        email: adminEmail ?? existingAdmin.email,
+        passwordHash: hashPassword(adminPassword),
+        role: UserRole.agency_admin,
+      },
+    });
+  } else {
+    await prisma.user.create({
+      data: {
+        username: adminUsername,
+        email: adminEmail,
+        passwordHash: hashPassword(adminPassword),
+        name: "Agency Admin",
+        role: UserRole.agency_admin,
+      },
+    });
+  }
 
   await prisma.playbookTemplate.upsert({
     where: { niche: "jim-wrestlers" },
@@ -156,7 +174,7 @@ async function main() {
   });
 
   console.log("Seed complete:");
-  console.log(`  Admin login: ${adminEmail} / ${adminPassword}`);
+  console.log(`  Admin login: ${adminUsername} / ${adminPassword}`);
   console.log(`  Client tenant: jim-harshaw (wrestlers + athletes campaigns)`);
 }
 
