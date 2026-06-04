@@ -13,17 +13,27 @@ export default function LoginPage() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    api
-      .me()
-      .then((r) => {
-        if (r.authDisabled) {
+    (async () => {
+      try {
+        const r = await api.me();
+        if (r.user) {
           router.replace("/setup");
           return;
         }
-        if (r.user) router.replace("/setup");
-      })
-      .catch(() => {})
-      .finally(() => setChecking(false));
+      } catch {
+        try {
+          const status = await api.authStatus();
+          if (status.authDisabled) {
+            await api.login("", "");
+            router.replace("/setup");
+          }
+        } catch {
+          /* stay on login */
+        }
+      } finally {
+        setChecking(false);
+      }
+    })();
   }, [router]);
 
   async function submit(e: React.FormEvent) {
@@ -92,8 +102,7 @@ export default function LoginPage() {
         <code>DISABLE_AUTH=true</code> on the api service to skip login.
       </p>
       <p style={{ marginTop: "0.75rem" }}>
-        <Link href="/setup">Continue to Setup →</Link> (only works if already
-        signed in or auth is disabled on api)
+        <Link href="/setup">Continue to Setup →</Link>
       </p>
     </div>
   );

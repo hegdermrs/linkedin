@@ -167,3 +167,16 @@ export async function resolveTenantId(
   }
   return user.tenantId;
 }
+
+/** Like resolveTenantId but returns null when auth is off and no tenant exists yet. */
+export async function resolveEffectiveTenantId(
+  user: SessionUser,
+  queryTenantId?: string
+): Promise<string | null> {
+  try {
+    return await resolveTenantId(user, queryTenantId);
+  } catch (err) {
+    if (isAuthDisabled()) return null;
+    throw err;
+  }
+}

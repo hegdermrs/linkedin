@@ -6,20 +6,45 @@ import { api, type SessionUser } from "@/lib/api";
 import { Nav } from "./Nav";
 import { TenantProvider } from "./TenantContext";
 
+async function loadSessionUser(): Promise<{
+  user: SessionUser;
+  authDisabled: boolean;
+}> {
+  try {
+    const r = await api.me();
+    return { user: r.user, authDisabled: Boolean(r.authDisabled) };
+  } catch {
+    const status = await api.authStatus().catch(() => null);
+    if (!status?.authDisabled) throw new Error("Not signed in");
+    const login = await api.login("", "");
+    return {
+      user: login.user,
+      authDisabled: true,
+    };
+  }
+}
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [authDisabled, setAuthDisabled] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api
-      .me()
-      .then((r) => {
-        setUser(r.user);
-        setAuthDisabled(Boolean(r.authDisabled));
+    loadSessionUser()
+      .then(({ user: u, authDisabled: off }) => {
+        setUser(u);
+        setAuthDisabled(off);
+        setError("");
       })
-      .catch(() => router.push("/login"))
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : "Could not load session";
+        setError(msg);
+        if (!msg.includes("Cannot reach the API")) {
+          router.push("/login");
+        }
+      })
       .finally(() => setLoading(false));
   }, [router]);
 
@@ -31,10 +56,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (error && error.includes("Cannot reach the API")) {
+    return (
+      <div className="main">
+        <div className="alert">{error}</div>
+      </div>
+    );
+  }
+
   if (!user) return null;
 
   return (
-    <TenantProvider user={user}>
+    <TenantProvider user={user} authDisabled={authDisabled}>
       {authDisabled && (
         <div
           className="alert"

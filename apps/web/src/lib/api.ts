@@ -71,7 +71,7 @@ async function fetchApi<T>(
 
 export const api = {
   login: (username: string, password: string) =>
-    fetchApi<{ user: SessionUser }>("/auth/login", {
+    fetchApi<{ user: SessionUser; authDisabled?: boolean }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
@@ -80,6 +80,7 @@ export const api = {
       method: "POST",
       body: "{}",
     }),
+  authStatus: () => fetchApi<{ authDisabled: boolean }>("/auth/status"),
   me: () =>
     fetchApi<{
       user: SessionUser;

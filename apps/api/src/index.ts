@@ -28,6 +28,7 @@ import {
   requireAuth,
   requireAgencyAdmin,
   resolveTenantId,
+  resolveEffectiveTenantId,
   hashPassword,
   sessionCookieOptions,
   clearSessionCookieOptions,
@@ -129,7 +130,7 @@ app.post("/auth/logout", async (request, reply) => {
 
 app.get("/auth/me", async (request) => {
   const user = await requireAuth(request);
-  const effectiveTenantId = await resolveTenantId(user);
+  const effectiveTenantId = await resolveEffectiveTenantId(user);
   const tenants =
     user.role === UserRole.agency_admin
       ? await prisma.tenant.findMany({
@@ -137,7 +138,12 @@ app.get("/auth/me", async (request) => {
           select: { id: true, name: true, slug: true },
         })
       : undefined;
-  return { user, effectiveTenantId, tenants, authDisabled: isAuthDisabled() };
+  return {
+    user,
+    effectiveTenantId: effectiveTenantId ?? "",
+    tenants,
+    authDisabled: isAuthDisabled(),
+  };
 });
 
 app.get("/admin/tenants", async (request) => {

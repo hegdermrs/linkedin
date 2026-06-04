@@ -30,9 +30,11 @@ const STORAGE_KEY = "selectedTenantId";
 export function TenantProvider({
   user,
   children,
+  authDisabled = false,
 }: {
   user: SessionUser;
   children: React.ReactNode;
+  authDisabled?: boolean;
 }) {
   const [tenantId, setTenantIdState] = useState<string>("");
   const [tenants, setTenants] = useState<TenantOption[]>([]);
@@ -61,6 +63,31 @@ export function TenantProvider({
   }, []);
 
   if (!tenantId) {
+    if (tenants.length === 0 && user.role === "agency_admin") {
+      return (
+        <TenantContext.Provider
+          value={{
+            user,
+            tenantId: "",
+            tenants,
+            setTenantId,
+            isAgencyAdmin: true,
+          }}
+        >
+          <div className="main">
+            <div className="alert" style={{ marginBottom: "1rem" }}>
+              No clients yet.{" "}
+              <a href="/admin/tenants">Create a client</a> (name + slug), then
+              return here.{" "}
+              {authDisabled
+                ? "Login is disabled on the api service."
+                : null}
+            </div>
+          </div>
+          {children}
+        </TenantContext.Provider>
+      );
+    }
     return (
       <div className="main">
         <p style={{ color: "var(--muted)" }}>Loading client context…</p>

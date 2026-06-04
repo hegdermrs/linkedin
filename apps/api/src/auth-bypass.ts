@@ -3,7 +3,8 @@ import type { SessionUser } from "./auth.js";
 
 /** Temporary: set DISABLE_AUTH=true on api (and redeploy). Re-enable login for production. */
 export function isAuthDisabled(): boolean {
-  return process.env.DISABLE_AUTH === "true";
+  const raw = (process.env.DISABLE_AUTH ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "1" || raw === "yes";
 }
 
 let cachedBypassUser: SessionUser | null = null;
