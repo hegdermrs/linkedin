@@ -47,7 +47,7 @@ async function fetchApi<T>(
   } catch {
     const hint = apiBase
       ? `Cannot reach API at ${apiBase}. Check that the api service is Online and has a public URL.`
-      : `Cannot reach API. On Railway: set API_URL on the web service to http://api.railway.internal:\${{api.PORT}} (do not use NEXT_PUBLIC_API_URL).`;
+      : `Cannot reach API. On Railway web service set API_URL=http://\${{api.RAILWAY_PRIVATE_DOMAIN}}:\${{api.PORT}} (Reference api), or API_FALLBACK_URL to the api public https URL.`;
     throw new Error(hint);
   }
   const text = await res.text();

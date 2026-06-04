@@ -78,6 +78,7 @@ services:
     environment:
       NODE_ENV: production
       API_URL: http://api:3001
+      # API_FALLBACK_URL: optional public api URL for proxy fallback
     depends_on:
       - api
 

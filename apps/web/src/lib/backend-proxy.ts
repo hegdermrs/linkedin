@@ -1,30 +1,55 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-/** Proxy browser API calls to Fastify (same-origin; avoids broken external rewrites in middleware). */
+const PROXY_PREFIX = "/api/proxy";
+
+function resolveApiOrigins(): string[] {
+  const raw = [
+    process.env.API_URL,
+    process.env.API_FALLBACK_URL,
+  ].filter((v): v is string => Boolean(v?.trim()));
+
+  const origins: string[] = [];
+  for (const value of raw) {
+    const trimmed = value.trim();
+    if (trimmed.includes("${{")) continue;
+    const normalized = trimmed.replace(/\/$/, "");
+    try {
+      new URL(normalized);
+      if (!origins.includes(normalized)) origins.push(normalized);
+    } catch {
+      /* skip invalid */
+    }
+  }
+  return origins;
+}
+
+/** Map /api/proxy/auth/login → /auth/login for the upstream API. */
+export function upstreamPathname(pathname: string): string {
+  if (pathname.startsWith(PROXY_PREFIX)) {
+    const rest = pathname.slice(PROXY_PREFIX.length);
+    return rest.length > 0 ? rest : "/";
+  }
+  return pathname;
+}
+
+/** Proxy browser API calls to Fastify (Node runtime; Railway private network). */
 export async function proxyToBackend(
   request: NextRequest
 ): Promise<NextResponse> {
-  const apiOrigin = process.env.API_URL?.replace(/\/$/, "");
-  if (!apiOrigin) {
+  const apiOrigins = resolveApiOrigins();
+  if (apiOrigins.length === 0) {
     return NextResponse.json(
-      { error: "API_URL is not set on the web service." },
+      {
+        error:
+          "API_URL is not set on the web service. In Railway Variables use: http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}} (Reference api PORT). Optional API_FALLBACK_URL = api public https URL.",
+      },
       { status: 503 }
     );
   }
 
-  let targetUrl: string;
-  try {
-    targetUrl = new URL(
-      request.nextUrl.pathname + request.nextUrl.search,
-      apiOrigin
-    ).toString();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid API_URL on the web service." },
-      { status: 503 }
-    );
-  }
+  const pathname = upstreamPathname(request.nextUrl.pathname);
+  const search = request.nextUrl.search;
 
   const headers = new Headers(request.headers);
   headers.delete("host");
@@ -47,29 +72,42 @@ export async function proxyToBackend(
     }
   }
 
-  try {
-    const upstream = await fetch(targetUrl, {
-      method: request.method,
-      headers,
-      body: body && body.byteLength > 0 ? body : undefined,
-      redirect: "manual",
-      cache: "no-store",
-    });
+  let lastError: unknown;
+  for (const apiOrigin of apiOrigins) {
+    let targetUrl: string;
+    try {
+      targetUrl = new URL(pathname + search, apiOrigin).toString();
+    } catch {
+      continue;
+    }
 
-    const responseHeaders = new Headers(upstream.headers);
-    return new NextResponse(upstream.body, {
-      status: upstream.status,
-      statusText: upstream.statusText,
-      headers: responseHeaders,
-    });
-  } catch (err) {
-    console.error("[backend-proxy]", targetUrl, err);
-    return NextResponse.json(
-      {
-        error:
-          "API unreachable. On Railway set API_URL to http://api.railway.internal:${{api.PORT}} and ensure the api service is Online.",
-      },
-      { status: 502 }
-    );
+    try {
+      const upstream = await fetch(targetUrl, {
+        method: request.method,
+        headers,
+        body: body && body.byteLength > 0 ? body : undefined,
+        redirect: "manual",
+        cache: "no-store",
+      });
+
+      const responseHeaders = new Headers(upstream.headers);
+      return new NextResponse(upstream.body, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers: responseHeaders,
+      });
+    } catch (err) {
+      lastError = err;
+      console.error("[backend-proxy]", targetUrl, err);
+    }
   }
+
+  console.error("[backend-proxy] all origins failed", apiOrigins, lastError);
+  return NextResponse.json(
+    {
+      error:
+        "API unreachable from web. Set API_URL=http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}} on web (service name must match your api service). Ensure api is Online. Or set API_FALLBACK_URL to the api public https URL.",
+    },
+    { status: 502 }
+  );
 }

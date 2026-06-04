@@ -83,7 +83,7 @@ You need **three services** from the **same GitHub repo**:
 2. Name it `web`.
 3. Dockerfile path: `Dockerfile.web`
 4. **Variables** (runtime — **do not** set `NEXT_PUBLIC_API_URL`; Chrome blocks cross-site session cookies):
-   - `API_URL` = `http://api.railway.internal:${{api.PORT}}` (use Railway **Reference** on `api` → **PORT**)
+   - `API_URL` = `http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}` (add via **Reference** on your **api** service: `RAILWAY_PRIVATE_DOMAIN` + `PORT`)
 5. **Generate domain** for the website.  
    That URL is what you open in the browser.
 
@@ -123,7 +123,8 @@ On **Website** only:
 
 | Variable | What to put |
 |----------|-------------|
-| `API_URL` | `http://api.railway.internal:${{api.PORT}}` (Reference **api** PORT) |
+| `API_URL` | `http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}` (Reference **api**) |
+| `API_FALLBACK_URL` | Optional: api public `https://…` URL if internal networking fails |
 
 Remove `NEXT_PUBLIC_API_URL` if you added it earlier, then **redeploy web**. The site calls `/auth/...` on the **same domain** as the UI (proxied to api).
 
