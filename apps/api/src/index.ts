@@ -24,6 +24,7 @@ import {
   resolveTenantId,
   hashPassword,
   sessionCookieOptions,
+  clearSessionCookieOptions,
 } from "./auth.js";
 import { enqueueJob, enqueueOrchestrateAll } from "./queue.js";
 import {
@@ -104,7 +105,7 @@ app.post("/auth/login", async (request, reply) => {
 app.post("/auth/logout", async (request, reply) => {
   const token = request.cookies.session;
   if (token) destroySession(token);
-  reply.clearCookie("session", sessionCookieOptions(request));
+  reply.clearCookie("session", clearSessionCookieOptions(request));
   return { ok: true };
 });
 

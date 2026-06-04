@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
 /** Fastify routes — proxied to API when API_URL is set (Railway / production). */
 const BACKEND_PREFIXES = [
@@ -20,34 +21,16 @@ function isBackendPath(pathname: string): boolean {
   );
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   if (!isBackendPath(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
 
-  const apiOrigin = process.env.API_URL?.replace(/\/$/, "");
-  if (!apiOrigin) {
+  if (!process.env.API_URL?.replace(/\/$/, "")) {
     return NextResponse.next();
   }
 
-  const target = new URL(
-    request.nextUrl.pathname + request.nextUrl.search,
-    apiOrigin
-  );
-
-  const requestHeaders = new Headers(request.headers);
-  const host = request.headers.get("host");
-  if (host) {
-    requestHeaders.set("x-forwarded-host", host);
-    requestHeaders.set(
-      "x-forwarded-proto",
-      request.nextUrl.protocol.replace(":", "")
-    );
-  }
-
-  return NextResponse.rewrite(target, {
-    request: { headers: requestHeaders },
-  });
+  return proxyToBackend(request);
 }
 
 export const config = {

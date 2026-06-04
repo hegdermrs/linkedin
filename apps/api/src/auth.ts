@@ -88,6 +88,16 @@ export function sessionCookieOptions(request: FastifyRequest): {
   };
 }
 
+export function clearSessionCookieOptions(
+  request: FastifyRequest
+): Pick<
+  ReturnType<typeof sessionCookieOptions>,
+  "path" | "secure" | "sameSite"
+> {
+  const { path, secure, sameSite } = sessionCookieOptions(request);
+  return { path, secure, sameSite };
+}
+
 export async function authenticate(
   login: string,
   password: string
