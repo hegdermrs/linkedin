@@ -1,9 +1,9 @@
 /**
- * Browser always uses same-origin paths (proxied via web middleware).
- * Cross-origin NEXT_PUBLIC_API_URL breaks session cookies in Chrome.
+ * Browser calls /api/proxy/* (Node route handler → Fastify). Do not use
+ * NEXT_PUBLIC_API_URL in the browser (breaks cookies in Chrome).
  */
 function getApiBase(): string {
-  if (typeof window !== "undefined") return "";
+  if (typeof window !== "undefined") return "/api/proxy";
   const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
   if (configured) return configured;
   return process.env.API_URL?.replace(/\/$/, "") ?? "http://localhost:3001";
@@ -44,11 +44,13 @@ async function fetchApi<T>(
       credentials: "include",
       headers: buildHeaders(options),
     });
-  } catch {
-    const hint = apiBase
-      ? `Cannot reach API at ${apiBase}. Check that the api service is Online and has a public URL.`
-      : `Cannot reach API. On Railway web service set API_URL=http://\${{api.RAILWAY_PRIVATE_DOMAIN}}:\${{api.PORT}} (Reference api), or API_FALLBACK_URL to the api public https URL.`;
-    throw new Error(hint);
+  } catch (e) {
+    const hint =
+      "Cannot reach the API. On Railway: set API_URL (and optional API_FALLBACK_URL) on the **web** service, ensure **api** is Online, redeploy **web**, then try again.";
+    if (e instanceof TypeError && e.message === "Failed to fetch") {
+      throw new Error(hint);
+    }
+    throw new Error(e instanceof Error ? e.message : hint);
   }
   const text = await res.text();
   if (!res.ok) {
