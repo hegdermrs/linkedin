@@ -6,6 +6,16 @@ import {
 } from "playwright";
 import { decryptSession, encryptSession } from "./session.js";
 import { humanDelay } from "./rate-limiter.js";
+import {
+  assertReadyForAutomation,
+  clickConnect,
+  collectDiagnostics,
+  detectRelationship,
+  LinkedInAutomationError,
+  openProfilePage,
+  type ProfileDiagnostics,
+  type ProfileRelationship,
+} from "./profile-page.js";
 
 export interface ScrapedProfile {
   firstName?: string;
@@ -29,6 +39,8 @@ export interface UnreadConversation {
   preview: string;
 }
 
+export { LinkedInAutomationError, type ProfileDiagnostics };
+
 export class LinkedInClient {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
@@ -44,13 +56,15 @@ export class LinkedInClient {
       const state = decryptSession(this.sessionEncrypted);
       this.context = await this.browser.newContext({
         storageState: JSON.parse(state),
+        viewport: { width: 1280, height: 900 },
         userAgent:
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
       });
     } else {
       this.context = await this.browser.newContext({
+        viewport: { width: 1280, height: 900 },
         userAgent:
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
       });
     }
   }
@@ -110,12 +124,8 @@ export class LinkedInClient {
   async scrapeProfile(profileUrl: string): Promise<ScrapedProfile> {
     const p = await this.page();
     const url = this.normalizeProfileUrl(profileUrl);
-    await p.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await humanDelay(2, 5);
-
-    if (await this.detectSecurityChallenge()) {
-      throw new Error("SECURITY_CHALLENGE");
-    }
+    const d = await openProfilePage(p, url);
+    await assertReadyForAutomation(d);
 
     const getText = async (selectors: string[]) => {
       for (const sel of selectors) {
@@ -173,51 +183,16 @@ export class LinkedInClient {
     };
   }
 
-  /** Detect relationship from the profile action bar (LinkedIn changes labels often). */
-  private async detectProfileRelationship(
-    p: Page
-  ): Promise<"none" | "pending" | "connected"> {
-    await p.waitForTimeout(1500);
-
-    const pending = p.locator(
-      'button[aria-label*="Pending" i], [role="button"][aria-label*="Pending" i]'
-    );
-    if ((await pending.count()) > 0) return "pending";
-    if ((await p.getByRole("button", { name: /Pending/i }).count()) > 0) {
-      return "pending";
-    }
-
-    const message = p.locator(
-      'button[aria-label*="Message" i], button[aria-label*="Send a message" i], a[aria-label*="Message" i]'
-    );
-    if ((await message.count()) > 0) return "connected";
-    if ((await p.getByRole("button", { name: /^(Message|Send a message)$/i }).count()) > 0) {
-      return "connected";
-    }
-
-    const connect = p.locator(
-      'button[aria-label*="Connect" i], button[aria-label*="Invite" i], [role="button"][aria-label*="Connect" i]'
-    );
-    if ((await connect.count()) > 0) return "none";
-    if ((await p.getByRole("button", { name: /^(Connect|Invite)$/i }).count()) > 0) {
-      return "none";
-    }
-
-    const firstDegree = p.getByText(/1st\s*(degree|connection)/i);
-    if ((await firstDegree.count()) > 0) return "connected";
-
-    return "none";
-  }
-
   async getConnectionStatus(
     profileUrl: string
   ): Promise<"none" | "pending" | "connected"> {
     const p = await this.page();
-    await p.goto(this.normalizeProfileUrl(profileUrl), {
-      waitUntil: "domcontentloaded",
-    });
-    await humanDelay(2, 4);
-    return this.detectProfileRelationship(p);
+    const { relationship } = await detectRelationship(
+      p,
+      this.normalizeProfileUrl(profileUrl)
+    );
+    if (relationship === "unknown") return "none";
+    return relationship;
   }
 
   async sendConnectionRequest(
@@ -225,35 +200,26 @@ export class LinkedInClient {
     note?: string
   ): Promise<void> {
     const p = await this.page();
-    await p.goto(this.normalizeProfileUrl(profileUrl), {
-      waitUntil: "domcontentloaded",
-    });
-    await humanDelay(2, 5);
+    const url = this.normalizeProfileUrl(profileUrl);
+    const d = await openProfilePage(p, url);
+    await assertReadyForAutomation(d);
 
-    const status = await this.detectProfileRelationship(p);
-    if (status === "connected") {
-      throw new Error("ALREADY_CONNECTED");
+    if (d.relationship === "connected") {
+      throw new LinkedInAutomationError(
+        "ALREADY_CONNECTED",
+        "Profile shows 1st-degree connection.",
+        d
+      );
     }
-    if (status === "pending") {
-      throw new Error("CONNECT_ALREADY_PENDING");
+    if (d.relationship === "pending") {
+      throw new LinkedInAutomationError(
+        "CONNECT_ALREADY_PENDING",
+        "Invitation already pending.",
+        d
+      );
     }
 
-    const connectBtn = p
-      .locator(
-        'button[aria-label*="Connect" i], button[aria-label*="Invite" i], [role="button"][aria-label*="Connect" i]'
-      )
-      .first();
-    const connectRole = p.getByRole("button", { name: /^(Connect|Invite)$/i }).first();
-    const btn =
-      (await connectBtn.count()) > 0
-        ? connectBtn
-        : (await connectRole.count()) > 0
-          ? connectRole
-          : null;
-    if (!btn) {
-      throw new Error("Connect button not found");
-    }
-    await btn.click();
+    await clickConnect(p, d);
     await p.waitForTimeout(1500);
 
     if (note) {
@@ -267,27 +233,57 @@ export class LinkedInClient {
     }
 
     const sendBtn = p.getByRole("button", { name: /Send( invitation)?/i });
+    if ((await sendBtn.count()) === 0) {
+      const diag = await collectDiagnostics(p);
+      throw new LinkedInAutomationError(
+        "SEND_INVITE_NOT_FOUND",
+        "Connect dialog opened but Send button not found.",
+        diag
+      );
+    }
     await sendBtn.first().click();
     await humanDelay(3, 8);
   }
 
   async sendMessage(profileUrl: string, text: string): Promise<void> {
     const p = await this.page();
-    await p.goto(this.normalizeProfileUrl(profileUrl), {
-      waitUntil: "domcontentloaded",
-    });
-    await humanDelay(2, 4);
+    const d = await openProfilePage(p, this.normalizeProfileUrl(profileUrl));
+    await assertReadyForAutomation(d);
 
-    const messageBtn = p.getByRole("button", { name: /^Message$/i }).first();
-    if ((await messageBtn.count()) === 0) {
-      throw new Error("Message button not found — not connected?");
+    if (d.relationship !== "connected") {
+      throw new LinkedInAutomationError(
+        "NOT_CONNECTED",
+        `Cannot message — not 1st-degree. ${d.visibleActions.join("; ")}`,
+        d
+      );
     }
-    await messageBtn.click();
+
+    const messageBtn = p
+      .locator('button[aria-label*="Message" i]')
+      .filter({ hasNot: p.locator("[aria-label*='InMail' i]") })
+      .first();
+    const messageRole = p.getByRole("button", { name: /^Message$/i }).first();
+    const btn =
+      (await messageBtn.count()) > 0
+        ? messageBtn
+        : (await messageRole.count()) > 0
+          ? messageRole
+          : null;
+    if (!btn) {
+      throw new LinkedInAutomationError(
+        "MESSAGE_BUTTON_NOT_FOUND",
+        "Message button not found on profile.",
+        d
+      );
+    }
+    await btn.click();
     await p.waitForTimeout(2000);
 
-    const compose = p.locator(
-      'div.msg-form__contenteditable, div[role="textbox"][contenteditable="true"]'
-    ).first();
+    const compose = p
+      .locator(
+        'div.msg-form__contenteditable, div[role="textbox"][contenteditable="true"]'
+      )
+      .first();
     await compose.click();
     await compose.fill(text);
     await humanDelay(1, 3);

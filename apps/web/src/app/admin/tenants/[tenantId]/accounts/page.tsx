@@ -151,12 +151,13 @@ function AccountsContent() {
               <strong>Last worker error:</strong>{" "}
               {connectError || primary.lastError}
               {(connectError || primary.lastError || "").includes(
-                "Connect button not found"
+                "CONNECT_NOT_FOUND"
               ) && (
                 <p style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
-                  This usually means the prospect is already a 1st-degree
-                  connection — redeploy worker and run orchestrate; the pipeline
-                  will skip connect and send the intro DM.
+                  The worker could not find Connect on the profile (often it is
+                  under <strong>More</strong>, or the session sees a different
+                  page). Check <code>visibleActions</code> in the error, refresh
+                  your LinkedIn session, redeploy worker, and retry.
                 </p>
               )}
             </div>

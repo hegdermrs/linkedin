@@ -290,28 +290,36 @@ export async function processSendConnect(
     await clearLinkedInAccountError(linkedInAccountId);
     await audit(prospect.tenantId, "connect_sent", prospectId, { reply });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg === "ALREADY_CONNECTED") {
-      await prisma.prospect.update({
-        where: { id: prospectId },
-        data: {
-          stage: ProspectStage.connected,
-          nextActionAt: new Date(),
-        },
-      });
-      await clearLinkedInAccountError(linkedInAccountId);
-      return;
-    }
-    if (msg === "CONNECT_ALREADY_PENDING") {
-      await prisma.prospect.update({
-        where: { id: prospectId },
-        data: {
-          stage: ProspectStage.connect_sent,
-          nextActionAt: hoursFromNow(24),
-        },
-      });
-      await clearLinkedInAccountError(linkedInAccountId);
-      return;
+    const { LinkedInAutomationError } = await import("@linkedin-agent/linkedin");
+    if (e instanceof LinkedInAutomationError) {
+      if (e.code === "ALREADY_CONNECTED") {
+        await prisma.prospect.update({
+          where: { id: prospectId },
+          data: {
+            stage: ProspectStage.connected,
+            nextActionAt: new Date(),
+          },
+        });
+        await clearLinkedInAccountError(linkedInAccountId);
+        return;
+      }
+      if (e.code === "CONNECT_ALREADY_PENDING") {
+        await prisma.prospect.update({
+          where: { id: prospectId },
+          data: {
+            stage: ProspectStage.connect_sent,
+            nextActionAt: hoursFromNow(24),
+          },
+        });
+        await clearLinkedInAccountError(linkedInAccountId);
+        return;
+      }
+      if (e.code === "CONNECT_NOT_FOUND" || e.code === "SEND_INVITE_NOT_FOUND") {
+        await prisma.prospect.update({
+          where: { id: prospectId },
+          data: { nextActionAt: hoursFromNow(6) },
+        });
+      }
     }
     await handleLinkedInError(linkedInAccountId, e);
   } finally {
@@ -606,6 +614,32 @@ async function handleLinkedInError(
   linkedInAccountId: string,
   error: unknown
 ): Promise<void> {
+  const { LinkedInAutomationError } = await import("@linkedin-agent/linkedin");
+
+  if (error instanceof LinkedInAutomationError) {
+    if (
+      error.code === "ALREADY_CONNECTED" ||
+      error.code === "CONNECT_ALREADY_PENDING"
+    ) {
+      return;
+    }
+    const msg = `${error.code}: ${error.message}`;
+    const status =
+      error.code === "NOT_LOGGED_IN" ||
+      error.code === "SECURITY_CHALLENGE" ||
+      error.code === "CONNECT_NOT_FOUND" ||
+      error.code === "SEND_INVITE_NOT_FOUND"
+        ? "needs_human"
+        : msg.includes("limit")
+          ? "rate_limited"
+          : "active";
+    await prisma.linkedInAccount.update({
+      where: { id: linkedInAccountId },
+      data: { status, lastError: msg },
+    });
+    return;
+  }
+
   const msg = error instanceof Error ? error.message : String(error);
   if (msg === "ALREADY_CONNECTED" || msg === "CONNECT_ALREADY_PENDING") {
     return;
