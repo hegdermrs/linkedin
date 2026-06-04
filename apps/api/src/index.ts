@@ -23,6 +23,7 @@ import {
   requireAgencyAdmin,
   resolveTenantId,
   hashPassword,
+  sessionCookieOptions,
 } from "./auth.js";
 import { enqueueJob, enqueueOrchestrateAll } from "./queue.js";
 import {
@@ -41,8 +42,24 @@ const PORT = parseInt(
   10
 );
 
+const corsOrigins = new Set(
+  [
+    process.env.WEB_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ]
+    .filter((u): u is string => Boolean(u))
+    .map((u) => u.replace(/\/$/, ""))
+);
+
 await app.register(cors, {
-  origin: process.env.WEB_URL ?? "http://localhost:3000",
+  origin: (origin, cb) => {
+    if (!origin) {
+      cb(null, true);
+      return;
+    }
+    cb(null, corsOrigins.has(origin.replace(/\/$/, "")));
+  },
   credentials: true,
 });
 await app.register(cookie);
@@ -72,14 +89,7 @@ app.post("/auth/login", async (request, reply) => {
   const user = await authenticate(loginId, body.password ?? "");
   if (!user) return reply.status(401).send({ error: "Invalid credentials" });
   const token = createSession(user);
-  const isProd = process.env.NODE_ENV === "production";
-  reply.setCookie("session", token, {
-    path: "/",
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  reply.setCookie("session", token, sessionCookieOptions(request));
   return {
     user: {
       id: user.id,
@@ -94,7 +104,7 @@ app.post("/auth/login", async (request, reply) => {
 app.post("/auth/logout", async (request, reply) => {
   const token = request.cookies.session;
   if (token) destroySession(token);
-  reply.clearCookie("session", { path: "/" });
+  reply.clearCookie("session", sessionCookieOptions(request));
   return { ok: true };
 });
 

@@ -15,6 +15,7 @@ export default function LoginPage() {
     setError("");
     try {
       await api.login(username, password);
+      router.refresh();
       router.push("/setup");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";

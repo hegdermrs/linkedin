@@ -1,8 +1,11 @@
-/** Same-origin proxy when empty (set API_URL on web service). Override with NEXT_PUBLIC_API_URL if needed. */
+/**
+ * Browser always uses same-origin paths (proxied via web middleware).
+ * Cross-origin NEXT_PUBLIC_API_URL breaks session cookies in Chrome.
+ */
 function getApiBase(): string {
+  if (typeof window !== "undefined") return "";
   const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
   if (configured) return configured;
-  if (typeof window !== "undefined") return "";
   return process.env.API_URL?.replace(/\/$/, "") ?? "http://localhost:3001";
 }
 
@@ -44,7 +47,7 @@ async function fetchApi<T>(
   } catch {
     const hint = apiBase
       ? `Cannot reach API at ${apiBase}. Check that the api service is Online and has a public URL.`
-      : `Cannot reach API. On Railway: set API_URL on the web service to http://api.railway.internal and reference api PORT, or set NEXT_PUBLIC_API_URL to the api public URL and redeploy web.`;
+      : `Cannot reach API. On Railway: set API_URL on the web service to http://api.railway.internal:\${{api.PORT}} (do not use NEXT_PUBLIC_API_URL).`;
     throw new Error(hint);
   }
   const text = await res.text();

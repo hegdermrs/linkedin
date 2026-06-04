@@ -34,7 +34,20 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname + request.nextUrl.search,
     apiOrigin
   );
-  return NextResponse.rewrite(target);
+
+  const requestHeaders = new Headers(request.headers);
+  const host = request.headers.get("host");
+  if (host) {
+    requestHeaders.set("x-forwarded-host", host);
+    requestHeaders.set(
+      "x-forwarded-proto",
+      request.nextUrl.protocol.replace(":", "")
+    );
+  }
+
+  return NextResponse.rewrite(target, {
+    request: { headers: requestHeaders },
+  });
 }
 
 export const config = {

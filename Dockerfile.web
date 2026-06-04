@@ -8,10 +8,7 @@ COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 RUN mkdir -p apps/web/public
 
-# Optional: set NEXT_PUBLIC_API_URL to api public URL. Prefer API_URL on web at runtime (same-origin proxy).
-ARG NEXT_PUBLIC_API_URL=
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
+# Runtime: set API_URL on the web service (same-origin proxy). Do not bake NEXT_PUBLIC_API_URL.
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @linkedin-agent/shared build
 RUN pnpm --filter @linkedin-agent/web build

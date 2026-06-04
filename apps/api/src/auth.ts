@@ -44,6 +44,50 @@ export function destroySession(token: string): void {
   sessions.delete(token);
 }
 
+/** SameSite=None is required for cross-origin API calls; Lax works when web proxies /auth to api. */
+export function sessionCookieOptions(request: FastifyRequest): {
+  path: string;
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: "lax" | "none";
+  maxAge: number;
+} {
+  const isProd = process.env.NODE_ENV === "production";
+  const secure = isProd;
+  const webUrl = process.env.WEB_URL?.replace(/\/$/, "");
+  const origin =
+    typeof request.headers.origin === "string"
+      ? request.headers.origin.replace(/\/$/, "")
+      : undefined;
+  const forwardedHost = request.headers["x-forwarded-host"];
+  const webHost = webUrl
+    ? (() => {
+        try {
+          return new URL(webUrl).host;
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+  const proxied =
+    typeof forwardedHost === "string" &&
+    webHost &&
+    forwardedHost.split(",")[0]?.trim() === webHost;
+  const sameSite =
+    proxied || (origin && webUrl && origin === webUrl)
+      ? "lax"
+      : isProd
+        ? "none"
+        : "lax";
+  return {
+    path: "/",
+    httpOnly: true,
+    secure,
+    sameSite,
+    maxAge: 60 * 60 * 24 * 7,
+  };
+}
+
 export async function authenticate(
   login: string,
   password: string
