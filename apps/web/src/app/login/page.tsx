@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
 
 export default function LoginPage() {
@@ -9,6 +10,21 @@ export default function LoginPage() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("changeme");
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    api
+      .me()
+      .then((r) => {
+        if (r.authDisabled) {
+          router.replace("/setup");
+          return;
+        }
+        if (r.user) router.replace("/setup");
+      })
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, [router]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,6 +45,14 @@ export default function LoginPage() {
               : msg
       );
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="login-page card">
+        <p style={{ color: "var(--muted)" }}>Loading…</p>
+      </div>
+    );
   }
 
   return (
@@ -64,7 +88,12 @@ export default function LoginPage() {
         </button>
       </form>
       <p style={{ marginTop: "1rem", fontSize: "0.8rem", color: "var(--muted)" }}>
-        Default: admin / changeme (after seed)
+        Default: admin / changeme (after seed). Or set{" "}
+        <code>DISABLE_AUTH=true</code> on the api service to skip login.
+      </p>
+      <p style={{ marginTop: "0.75rem" }}>
+        <Link href="/setup">Continue to Setup →</Link> (only works if already
+        signed in or auth is disabled on api)
       </p>
     </div>
   );

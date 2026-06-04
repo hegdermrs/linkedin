@@ -5,12 +5,22 @@ import { usePathname, useRouter } from "next/navigation";
 import { api, type SessionUser } from "@/lib/api";
 import { useTenant } from "./TenantContext";
 
-export function Nav({ user }: { user: SessionUser }) {
+export function Nav({
+  user,
+  authDisabled = false,
+}: {
+  user: SessionUser;
+  authDisabled?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { tenantId, tenants } = useTenant();
 
   async function logout() {
+    if (authDisabled) {
+      router.push("/setup");
+      return;
+    }
     try {
       await api.logout();
     } catch {

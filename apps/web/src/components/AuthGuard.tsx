@@ -10,11 +10,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authDisabled, setAuthDisabled] = useState(false);
 
   useEffect(() => {
     api
       .me()
-      .then((r) => setUser(r.user))
+      .then((r) => {
+        setUser(r.user);
+        setAuthDisabled(Boolean(r.authDisabled));
+      })
       .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
   }, [router]);
@@ -31,7 +35,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <TenantProvider user={user}>
-      <Nav user={user} />
+      {authDisabled && (
+        <div
+          className="alert"
+          style={{ margin: "0 0 0", borderRadius: 0, textAlign: "center" }}
+        >
+          Login is off (DISABLE_AUTH on api). Turn it off before going public.
+        </div>
+      )}
+      <Nav user={user} authDisabled={authDisabled} />
       {children}
     </TenantProvider>
   );

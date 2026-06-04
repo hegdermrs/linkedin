@@ -20,6 +20,7 @@ import {
   canDecryptSession,
   sessionKeyFingerprint,
 } from "@linkedin-agent/linkedin";
+import { isAuthDisabled, getBypassUser } from "./auth-bypass.js";
 import {
   authenticate,
   createSession,
@@ -84,9 +85,20 @@ app.setErrorHandler((error, _request, reply) => {
   reply.status(statusCode).send({ error: message });
 });
 
-app.get("/health", async () => ({ ok: true }));
+app.get("/health", async () => ({
+  ok: true,
+  authDisabled: isAuthDisabled(),
+}));
+
+app.get("/auth/status", async () => ({
+  authDisabled: isAuthDisabled(),
+}));
 
 app.post("/auth/login", async (request, reply) => {
+  if (isAuthDisabled()) {
+    const user = await getBypassUser();
+    return { user, authDisabled: true };
+  }
   const body = request.body as {
     username?: string;
     email?: string;
@@ -125,7 +137,7 @@ app.get("/auth/me", async (request) => {
           select: { id: true, name: true, slug: true },
         })
       : undefined;
-  return { user, effectiveTenantId, tenants };
+  return { user, effectiveTenantId, tenants, authDisabled: isAuthDisabled() };
 });
 
 app.get("/admin/tenants", async (request) => {

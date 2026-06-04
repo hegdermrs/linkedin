@@ -85,6 +85,7 @@ export const api = {
       user: SessionUser;
       effectiveTenantId: string;
       tenants?: { id: string; name: string; slug: string }[];
+      authDisabled?: boolean;
     }>("/auth/me"),
   metrics: (tenantId?: string) =>
     fetchApi<MetricsResponse>(

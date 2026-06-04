@@ -1,6 +1,7 @@
 import { scryptSync, timingSafeEqual, randomBytes } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import { prisma, UserRole } from "@linkedin-agent/db";
+import { getBypassUser, isAuthDisabled } from "./auth-bypass.js";
 import { loadSession, removeSession, saveSession } from "./session-store.js";
 
 export function hashPassword(password: string): string {
@@ -116,9 +117,13 @@ export async function authenticate(
 }
 
 export async function requireAuth(
-  request: FastifyRequest
+  _request: FastifyRequest
 ): Promise<SessionUser> {
-  const token = request.cookies.session;
+  if (isAuthDisabled()) {
+    return getBypassUser();
+  }
+
+  const token = _request.cookies.session;
   const user = await loadSession(token);
   if (!user) {
     throw {
